@@ -55,7 +55,7 @@ func TestIntegration_RegisterAndLogin(t *testing.T) {
 		Username:    "inttestuser",
 		Email:       "inttestuser@example.com",
 		Password:    "inttestpassword",
-		Preferences: "{\"diet\":\"vegan\"}",
+		Preferences: map[string]interface{}{"diet": "vegan"},
 	}
 	body, err := json.Marshal(registerPayload)
 	assert.NoError(t, err)
@@ -122,7 +122,7 @@ func TestIntegration_InvalidLogin(t *testing.T) {
 		Username:    "inttestuser2",
 		Email:       "inttestuser2@example.com",
 		Password:    "validpassword",
-		Preferences: "{\"diet\":\"vegetarian\"}",
+		Preferences: map[string]interface{}{"diet": "vegetarian"},
 	}
 	body, err := json.Marshal(registerPayload)
 	assert.NoError(t, err)

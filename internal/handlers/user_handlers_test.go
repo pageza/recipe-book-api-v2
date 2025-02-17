@@ -61,7 +61,7 @@ func TestRegisterAndLoginHandler(t *testing.T) {
 		Username:    "testuser",
 		Email:       "testuser@example.com",
 		Password:    "testpassword",
-		Preferences: "{\"diet\":\"vegan\"}",
+		Preferences: map[string]interface{}{"diet": "vegan"},
 	}
 	payloadBytes, err := json.Marshal(registerPayload)
 	assert.NoError(t, err)

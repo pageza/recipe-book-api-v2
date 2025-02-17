@@ -6,6 +6,7 @@ All Rights Reserved.
 package handlers
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -23,10 +24,10 @@ type UserHandler struct {
 }
 
 type RegisterInput struct {
-	Username    string `json:"username" binding:"required"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required"`
-	Preferences string `json:"preferences"`
+	Username    string                 `json:"username" binding:"required"`
+	Email       string                 `json:"email" binding:"required,email"`
+	Password    string                 `json:"password" binding:"required"`
+	Preferences map[string]interface{} `json:"preferences"`
 }
 
 func NewUserHandler(s service.UserService, jwtSecret string) *UserHandler {
@@ -51,12 +52,21 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 	log.Printf("DEBUG: Register - hashed password: %s", hashed)
 
+	// Convert the map to a JSON string.
+	prefBytes, err := json.Marshal(input.Preferences)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not process preferences"})
+		log.Printf("DEBUG: Register - preferences marshalling failed: %v", err)
+		return
+	}
+	preferencesStr := string(prefBytes)
+
 	// Create a new user model
 	user := &models.User{
 		Username:     input.Username,
 		Email:        input.Email,
 		PasswordHash: hashed, // store the hashed version
-		Preferences:  input.Preferences,
+		Preferences:  preferencesStr,
 	}
 
 	// If no ID is set, generate one.
