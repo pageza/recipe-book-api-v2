@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recipe-app-config
+data:
+  db_host: "postgres"
+  db_port: "5432"

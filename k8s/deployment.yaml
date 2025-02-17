@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recipe-app-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: recipe-app
+  template:
+    metadata:
+      labels:
+        app: recipe-app
+    spec:
+      containers:
+      - name: recipe-app
+        image: your-docker-repo/recipe-app:latest
+        ports:
+        - containerPort: 8080
+        env:
+          - name: PORT
+            value: "8080"
+          - name: DB_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: recipe-app-config
+                key: db_host
+          - name: DB_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: recipe-app-config
+                key: db_port
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: recipe-app-secret
+                key: db_user
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: recipe-app-secret
+                key: db_password
+          - name: DB_NAME
+            value: "recipe_db"
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: recipe-app-secret
+                key: jwt_secret

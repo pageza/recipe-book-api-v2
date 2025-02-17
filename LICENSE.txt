@@ -1,0 +1,6 @@
+/*
+Copyright (C) 2025 Zach Page
+All Rights Reserved.
+
+This software is proprietary and confidential. No part of this software may be copied, redistributed, or used in any form without explicit prior written permission.
+*/

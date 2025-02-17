@@ -1,0 +1,38 @@
+# Binaries and build artifacts
+/bin/
+/out/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Build directories
+build/
+dist/
+
+# Go module files
+/vendor/
+
+# Dependency files (if not committing them)
+go.sum
+
+# Editor settings and IDE directories
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Docker artifacts
+docker-compose.override.yml
+
+# Dev container temporary files
+.devcontainer/tmp/
+
+# Other temporary files
+tmp/
