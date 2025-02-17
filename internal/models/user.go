@@ -8,7 +8,7 @@ package models
 import "time"
 
 type User struct {
-	ID           string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	ID           string    `gorm:"type:uuid;primaryKey" json:"id"`
 	Username     string    `gorm:"type:varchar(100);unique;not null" json:"username"`
 	Email        string    `gorm:"type:varchar(255);unique;not null" json:"email"`
 	PasswordHash string    `gorm:"type:text;not null" json:"-"`
