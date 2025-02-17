@@ -1,7 +1,6 @@
 # Use Ubuntu 22.04 as the base image
 FROM ubuntu:22.04
 
-# Set noninteractive mode for apt-get to avoid prompts during build
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install required packages: curl, git, ca-certificates, and build-essential
@@ -21,11 +20,19 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
     $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
     tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Install Docker and Docker Compose plugin
+ # Install Docker and Docker Compose plugin
 RUN apt-get update && apt-get install -y \
-    docker.io \
-    docker-compose-plugin \
-    && rm -rf /var/lib/apt/lists/*
+docker.io \
+docker-compose-plugin \
+&& rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user 'vscode' and add them to the docker group
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN groupadd --gid ${USER_GID} ${USERNAME} \
+    && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
+    && usermod -aG docker ${USERNAME}
 
 # Install the latest Go (Go 1.24.0)
 ENV GO_VERSION=1.24.0
@@ -36,20 +43,12 @@ RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -o go.tar.gz
 # Update PATH to include Go binaries
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-# Create and set the workspace directory
+# Set the working directory
 RUN mkdir -p /workspace
 WORKDIR /workspace
 
-# Create a non-root user (vscode) for security and compatibility with VS Code Remote - Containers
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=1000
-RUN groupadd --gid ${USER_GID} ${USERNAME} && \
-    useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} && \
-    usermod -aG docker ${USERNAME}
-
-# Switch to the non-root user
+# Switch to non-root user
 USER ${USERNAME}
 
-# Expose port 8080 for the Recipe App API
+# Expose port 8080 (if needed)
 EXPOSE 8080
