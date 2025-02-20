@@ -68,8 +68,9 @@ jobs:
         run: |
           for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
             echo "Running tests in $file"
-            docker run --rm -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
+            docker run --rm --network recipe-book-api-v2_default -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
           done
+
 
       - name: Tear Down Docker Compose Services
         if: always()
