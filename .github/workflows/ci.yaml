@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  ACTIONS_RUNNER_DEBUG: true
+  ACTIONS_STEP_DEBUG: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -30,20 +34,25 @@ jobs:
       - name: Wait for API to be Ready
         run: |
           for i in {1..10}; do
+            # Adjust the URL if needed. Here we assume the healthcheck endpoint is at /healthcheck.
             if curl -s http://host.docker.internal:8080/healthcheck > /dev/null; then
               echo "API is ready"
               exit 0
             fi
-            echo "Waiting for API..."
+            echo "Waiting for API... attempt $i"
             sleep 5
           done
+          echo "API did not become healthy in time"
           exit 1
+
+      - name: Dump container logs
+        run: docker compose logs
 
       - name: Run all modular E2E tests with Newman
         run: |
           for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
             echo "Running tests in $file"
-          docker run --rm -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
+            docker run --rm -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
           done
 
       - name: Tear Down Docker Compose Services
