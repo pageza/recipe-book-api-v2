@@ -50,16 +50,16 @@ jobs:
           echo "API did not become healthy in time"
           exit 1
 
-      - name: Dump container logs to file
-        if: always()
-        run: docker compose logs > docker-logs.txt
+      # - name: Dump container logs to file
+      #   if: always()
+      #   run: docker compose logs > docker-logs.txt
 
-      - name: Upload Docker logs as artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: docker-compose-logs
-          path: docker-logs.txt
+      # - name: Upload Docker logs as artifact
+      #   if: always()
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: docker-compose-logs
+      #     path: docker-logs.txt
 
       - name: Run all modular E2E tests with Newman
         run: |
