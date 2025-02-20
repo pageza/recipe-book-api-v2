@@ -35,7 +35,7 @@ jobs:
         run: |
           for i in {1..10}; do
             # Adjust the URL if needed. Here we assume the healthcheck endpoint is at /healthcheck.
-            if curl -s http://host.docker.internal:8080/healthcheck > /dev/null; then
+            if curl -s http://localhost:8080/healthcheck > /dev/null; then
               echo "API is ready"
               exit 0
             fi
