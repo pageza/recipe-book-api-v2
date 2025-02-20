@@ -1,4 +1,4 @@
-package handlers_test
+package users_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pageza/recipe-book-api-v2/internal/handlers"
+	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/middleware"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// setupTestRouter configures an in-memory test DB, sets up the repository, service, handlers,
+// setupTestRouter configures an in-memory test DB, sets up the repository, service, handler,
 // and configures a Gin router with the /register, /login, and /profile endpoints.
 func setupTestRouter() *gin.Engine {
 	// Open an in-memory SQLite database.
@@ -34,7 +34,7 @@ func setupTestRouter() *gin.Engine {
 
 	repo := repository.NewUserRepository(db)
 	svc := service.NewUserService(repo)
-	handler := handlers.NewUserHandler(svc, "testsecret")
+	handler := users.NewUserHandler(svc, "testsecret")
 
 	router := gin.Default()
 	// Register endpoints.
@@ -51,7 +51,7 @@ func TestIntegration_RegisterAndLogin(t *testing.T) {
 	router := setupTestRouter()
 
 	// 1. Test Registration
-	registerPayload := handlers.RegisterInput{
+	registerPayload := users.RegisterInput{
 		Username:    "inttestuser",
 		Email:       "inttestuser@example.com",
 		Password:    "inttestpassword",
@@ -118,7 +118,7 @@ func TestIntegration_InvalidLogin(t *testing.T) {
 	router := setupTestRouter()
 
 	// First, register a user.
-	registerPayload := handlers.RegisterInput{
+	registerPayload := users.RegisterInput{
 		Username:    "inttestuser2",
 		Email:       "inttestuser2@example.com",
 		Password:    "validpassword",

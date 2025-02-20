@@ -1,4 +1,4 @@
-package handlers_test
+package users_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pageza/recipe-book-api-v2/internal/handlers"
+	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -50,14 +50,14 @@ func TestRegisterAndLoginHandler(t *testing.T) {
 
 	// Use the dummy service.
 	dummySvc := &dummyUserService{}
-	handler := handlers.NewUserHandler(dummySvc, "testsecret")
+	handler := users.NewUserHandler(dummySvc, "testsecret")
 
 	router := gin.Default()
 	router.POST("/register", handler.Register)
 	router.POST("/login", handler.Login)
 
 	// Test Registration
-	registerPayload := handlers.RegisterInput{
+	registerPayload := users.RegisterInput{
 		Username:    "testuser",
 		Email:       "testuser@example.com",
 		Password:    "testpassword",

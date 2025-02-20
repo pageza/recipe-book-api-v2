@@ -3,7 +3,7 @@ Copyright (C) 2025 Your Company
 All Rights Reserved.
 */
 
-package handlers
+package users
 
 import (
 	"encoding/json"
@@ -18,9 +18,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// UserHandler handles user-related HTTP requests.
 type UserHandler struct {
-	service   service.UserService
+	service   service.UserService // or service.UserServiceInterface if that's your defined interface
 	jwtSecret string
+}
+
+// NewUserHandler creates a new instance of UserHandler.
+func NewUserHandler(svc service.UserService, jwtSecret string) *UserHandler {
+	return &UserHandler{
+		service:   svc,
+		jwtSecret: jwtSecret,
+	}
 }
 
 type RegisterInput struct {
@@ -28,10 +37,6 @@ type RegisterInput struct {
 	Email       string                 `json:"email" binding:"required,email"`
 	Password    string                 `json:"password" binding:"required"`
 	Preferences map[string]interface{} `json:"preferences"`
-}
-
-func NewUserHandler(s service.UserService, jwtSecret string) *UserHandler {
-	return &UserHandler{service: s, jwtSecret: jwtSecret}
 }
 
 func (h *UserHandler) Register(c *gin.Context) {

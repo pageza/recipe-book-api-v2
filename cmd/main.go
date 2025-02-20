@@ -10,11 +10,10 @@ import (
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
-	"github.com/pageza/recipe-book-api-v2/internal/middleware"
+	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
+	"github.com/pageza/recipe-book-api-v2/internal/routes"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -31,25 +30,19 @@ func main() {
 	// Initialize repositories, services, and handlers
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
-	userHandler := handlers.NewUserHandler(userService, cfg.JWTSecret)
+	userHandler := users.NewUserHandler(userService, cfg.JWTSecret)
 
-	// Initialize Gin router and apply middleware
-	router := gin.Default()
-	router.Use(middleware.Logger())
-
-	// Public routes
-	router.POST("/register", userHandler.Register)
-	router.POST("/login", userHandler.Login)
-
-	// Protected routes
-	protected := router.Group("/")
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
-	{
-		protected.GET("/profile", userHandler.Profile)
+	// Combine all handlers into a composite struct
+	h := &handlers.Handlers{
+		User: userHandler,
+		// Recipe: recipeHandler,
 	}
 
+	// Initialize the router using the composite handlers
+	r := routes.NewRouter(cfg, h)
+
 	// Start the server
-	if err := router.Run(":" + cfg.Port); err != nil {
+	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("failed to run server: %v", err)
 	}
 }
