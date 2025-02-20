@@ -16,7 +16,7 @@ dist/
 /vendor/
 
 # Dependency files (if not committing them)
-go.sum
+# go.sum
 
 # Editor settings and IDE directories
 .vscode/
