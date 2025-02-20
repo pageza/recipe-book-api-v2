@@ -1,0 +1,51 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'  # adjust as needed
+
+      - name: Run Go tests
+        run: go test -v ./...
+
+      - name: Build Docker images
+        run: docker-compose build --no-cache
+
+      - name: Start Docker Compose Services
+        run: docker-compose up -d
+
+      - name: Wait for API to be Ready
+        run: |
+          for i in {1..10}; do
+            if curl -s http://localhost:8080/register > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            echo "Waiting for API..."
+            sleep 5
+          done
+          exit 1
+
+      - name: Run all modular E2E tests with Newman
+        run: |
+          for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
+            echo "Running tests in $file"
+          docker run --rm -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
+          done
+
+      - name: Tear Down Docker Compose Services
+        if: always()
+        run: docker-compose down

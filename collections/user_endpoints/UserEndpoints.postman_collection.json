@@ -1,0 +1,176 @@
+{
+  "info": {
+    "name": "User Endpoints",
+    "description": "Collection for testing user-related endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const timestamp = new Date().getTime();",
+          "pm.environment.set('uniqueUsername', 'testuser_' + timestamp);",
+          "pm.environment.set('uniqueEmail', 'testuser_' + timestamp + '@example.com');",
+          "pm.environment.set('uniquePassword', 'testpassword_' + timestamp);",
+          "pm.environment.set('uniquePreferences', JSON.stringify({ diet: 'vegan', unique: timestamp }));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Register User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"{{uniqueUsername}}\",\n    \"email\": \"{{uniqueEmail}}\",\n    \"password\": \"{{uniquePassword}}\",\n    \"preferences\": {{uniquePreferences}}\n}"
+        },
+        "url": {
+          "raw": "{{apiUrl}}/register",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "register"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 201 (Created)",
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "// Validate that Content-Type header includes 'json'",
+              "pm.test(\"Content-Type is application/json\", function () {",
+              "    pm.response.to.have.header(\"Content-Type\", /json/);",
+              "});",
+              "",
+              "// Parse response and verify expected fields",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Response has 'message' field\", function () {",
+              "    pm.expect(jsonData).to.have.property(\"message\");",
+              "});",
+              "pm.test(\"Message field is 'user registered'\", function () {",
+              "    pm.expect(jsonData.message).to.eql(\"user registered\");",
+              "});",
+              "",
+              "// Store registration values for subsequent login tests",
+              "pm.environment.set(\"registeredEmail\", pm.environment.get(\"uniqueEmail\"));",
+              "pm.environment.set(\"registeredPassword\", pm.environment.get(\"uniquePassword\"));",
+              "if (jsonData.id) {",
+              "    pm.environment.set(\"registeredUserId\", jsonData.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{registeredEmail}}\",\n    \"password\": \"{{registeredPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{apiUrl}}/login",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate login response status is 200",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Parse the response and ensure token exists",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Response has token\", function () {",
+              "    pm.expect(jsonData).to.have.property(\"token\");",
+              "});",
+              "",
+              "// Store the token for use in protected endpoint tests",
+              "pm.environment.set(\"jwtToken\", jsonData.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwtToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{apiUrl}}/profile",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "profile"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 200 for the profile endpoint",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Parse the response and validate the email matches the registered email",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Profile email matches registered email\", function () {",
+              "    pm.expect(jsonData.email).to.eql(pm.environment.get(\"registeredEmail\"));",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
