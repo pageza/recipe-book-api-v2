@@ -21,7 +21,7 @@ func NewRouter(cfg *config.Config, h *handlers.Handlers) *gin.Engine {
 	router.Use(middleware.Logger())
 
 	// Healthcheck endpoint (could be a simple Gin handler as well)
-	router.GET("/health", func(c *gin.Context) {
+	router.GET("/healthcheck", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
 	})
 

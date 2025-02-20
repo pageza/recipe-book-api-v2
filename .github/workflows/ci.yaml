@@ -31,22 +31,35 @@ jobs:
       - name: Start Docker Compose Services
         run: docker compose up -d
 
+      - name: List Docker Compose Services
+        run: docker compose ps
+
       - name: Wait for API to be Ready
         run: |
+          URL="http://localhost:8080/healthcheck"
+          echo "Checking API health at: $URL"
           for i in {1..10}; do
-            # Adjust the URL if needed. Here we assume the healthcheck endpoint is at /healthcheck.
-            if curl -s http://localhost:8080/healthcheck > /dev/null; then
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+            echo "Attempt $i: HTTP status $status"
+            if [ "$status" -eq 200 ]; then
               echo "API is ready"
               exit 0
             fi
-            echo "Waiting for API... attempt $i"
             sleep 5
           done
           echo "API did not become healthy in time"
           exit 1
 
-      - name: Dump container logs
-        run: docker compose logs
+      - name: Dump container logs to file
+        if: always()
+        run: docker compose logs > docker-logs.txt
+
+      - name: Upload Docker logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-compose-logs
+          path: docker-logs.txt
 
       - name: Run all modular E2E tests with Newman
         run: |
