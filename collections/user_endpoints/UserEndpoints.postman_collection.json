@@ -58,7 +58,8 @@
               "",
               "// Validate that Content-Type header includes 'application/json'",
               "pm.test(\"Content-Type is application/json\", function () {",
-              "    pm.response.to.have.header(\"Content-Type\", /application\\/json/);",
+              "    var contentType = pm.response.headers.get(\"Content-Type\");",
+              "    pm.expect(contentType).to.match(/application\\/json/);",
               "});",
               "",
               "// Parse response and verify expected fields",
@@ -77,6 +78,7 @@
               "    pm.environment.set(\"registeredUserId\", jsonData.id);",
               "}"
             ]
+
           }
         }
       ]
