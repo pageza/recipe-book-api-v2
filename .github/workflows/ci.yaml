@@ -39,7 +39,7 @@ jobs:
           URL="http://localhost:8080/health"
           echo "Checking API health at: $URL"
           # Optional: initial sleep to give the API some time to start
-          sleep 10
+          sleep 15
           for i in {1..15}; do
             status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
             echo "Attempt $i: HTTP status $status"
