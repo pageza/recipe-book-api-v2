@@ -17,7 +17,7 @@
       ]
     }
   },
-  "postCreateCommand": "go mod tidy",
+  "postCreateCommand": "git config --global user.name 'pageza' && git config --global user.email 'zap.freelance@gmail.com' && go mod tidy",
   "remoteUser": "vscode",
   // "forwardPorts": [8080],
   "mounts": [
