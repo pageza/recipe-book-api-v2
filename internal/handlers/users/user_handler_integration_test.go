@@ -11,6 +11,7 @@ import (
 	"github.com/pageza/recipe-book-api-v2/proto/proto" // Generated gRPC client code
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 // setupTestClient connects to the gRPC server using the address specified in the environment variable GRPC_DIAL_ADDRESS.
@@ -98,4 +99,63 @@ func TestIntegration_InvalidLogin(t *testing.T) {
 	assert.Error(t, err, "Expected error during login with incorrect password")
 	// Since an error is expected, loginResp should be nil.
 	assert.Nil(t, loginResp, "Expected login response to be nil when login fails")
+}
+
+func TestIntegration_DuplicateRegistration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := setupTestClient()
+
+	// Generate unique email and username for this test.
+	uniqueEmail := "inttestdup_" + uuid.New().String() + "@example.com"
+	uniqueUsername := "inttestdup_" + uuid.New().String()
+
+	// 1. First registration should succeed.
+	regResp1, err := client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       uniqueEmail,
+		Username:    uniqueUsername,
+		Password:    "duplicatepassword",
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	assert.NoError(t, err, "Expected no error on first registration")
+	assert.NotEmpty(t, regResp1.UserId, "Expected userId in first registration response")
+
+	// Wait for commit.
+	time.Sleep(2 * time.Second)
+
+	// 2. Second registration with the same email should fail.
+	_, err = client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       uniqueEmail,
+		Username:    uniqueUsername,
+		Password:    "duplicatepassword",
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	assert.Error(t, err, "Expected error on duplicate registration")
+	// Check that the error message contains "user already exists".
+	st, ok := status.FromError(err)
+	assert.True(t, ok, "Expected gRPC status error")
+	assert.Contains(t, st.Message(), "user already exists", "Expected duplicate registration error message")
+}
+
+func TestIntegration_RegisterEmptyEmail(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := setupTestClient()
+
+	// Create a registration request with an empty email.
+	regResp, err := client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       "",
+		Username:    "malformedUser",
+		Password:    "somepassword",
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	// In our environment, an empty email might already be registered, so we expect an error.
+	assert.Error(t, err, "Expected error for registration with empty email")
+	st, ok := status.FromError(err)
+	assert.True(t, ok, "Expected gRPC status error")
+	// Adjust the expected substring as per your service's response.
+	assert.Contains(t, st.Message(), "user already exists", "Expected error message indicating duplicate or missing email")
+	// Optionally, if a response is returned, ensure that the Email field in the response is empty.
+	if regResp != nil {
+		// Since CreateUserResponse doesn't have an Email field, we check for UserId only.
+		assert.NotEmpty(t, regResp.UserId, "Expected userId even for empty email registration")
+	}
 }
