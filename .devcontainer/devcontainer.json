@@ -2,8 +2,11 @@
   "name": "Recipe App Dev Container",
   "dockerFile": "Dockerfile.dev",
   "context": ".",
-  "runArgs": ["--group-add", "999",
-  "--add-host=host.docker.internal:host-gateway"],
+  "runArgs": [
+    "--group-add", "999",
+    "--add-host=host.docker.internal:host-gateway",
+    "--network", "backend"
+],
   "customizations": {
     "vscode": {
       "settings": {

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// dummyUserService implements service.UserService
+// dummyUserService implements service.UserService for HTTP-based testing.
 type dummyUserService struct{}
 
 func (d *dummyUserService) Register(user *models.User) error {
@@ -23,7 +23,7 @@ func (d *dummyUserService) Register(user *models.User) error {
 }
 
 func (d *dummyUserService) Login(email, password string) (*models.User, error) {
-	// Simulate successful login: generate hash from the provided password and return a dummy user.
+	// Simulate successful login by generating a hash and returning a dummy user.
 	hash, _ := utils.HashPassword(password)
 	return &models.User{
 		ID:           "dummy-id",
@@ -35,6 +35,7 @@ func (d *dummyUserService) Login(email, password string) (*models.User, error) {
 }
 
 func (d *dummyUserService) GetProfile(userID string) (*models.User, error) {
+	// Simulate profile retrieval.
 	return &models.User{
 		ID:           userID,
 		Email:        "dummy@example.com",
@@ -52,11 +53,12 @@ func TestRegisterAndLoginHandler(t *testing.T) {
 	dummySvc := &dummyUserService{}
 	handler := users.NewUserHandler(dummySvc, "testsecret")
 
+	// Set up Gin router for HTTP registration and login.
 	router := gin.Default()
 	router.POST("/register", handler.Register)
 	router.POST("/login", handler.Login)
 
-	// Test Registration
+	// Test Registration via HTTP.
 	registerPayload := users.RegisterInput{
 		Username:    "testuser",
 		Email:       "testuser@example.com",
@@ -72,7 +74,7 @@ func TestRegisterAndLoginHandler(t *testing.T) {
 	router.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	// Test Login
+	// Test Login via HTTP.
 	loginPayload := map[string]string{
 		"email":    "testuser@example.com",
 		"password": "testpassword",
