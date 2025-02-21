@@ -13,7 +13,6 @@ env:
   ACTIONS_STEP_DEBUG: true
   GRPC_DIAL_ADDRESS: localhost:50051
 
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -24,25 +23,24 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: '1.24'  # adjust as needed
+          go-version: '1.24'
 
-      - name: Run Go tests
-        run: go test -v ./...
-
+      # Build Docker images first.
       - name: Build Docker images
         run: docker compose build --no-cache
 
+      # Start all required services.
       - name: Start Docker Compose Services
         run: docker compose up -d
 
       - name: List Docker Compose Services
         run: docker compose ps
 
+      # Wait for the API to be ready. (Adjust URL and timing as needed.)
       - name: Wait for API to be Ready
         run: |
           URL="http://localhost:8080/healthcheck"
           echo "Checking API health at: $URL"
-          # Optional: initial sleep to give the API some time to start
           sleep 15
           for i in {1..15}; do
             status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
@@ -56,18 +54,11 @@ jobs:
           echo "API did not become healthy in time"
           exit 1
 
+      # Run your Go tests.
+      - name: Run Go tests
+        run: go test -v ./...
 
-      - name: Dump container logs 
-        if: always()
-        run: docker compose logs 
-
-      # - name: Upload Docker logs as artifact
-      #   if: always()
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: docker-compose-logs
-      #     path: docker-logs.txt
-
+      # Run additional E2E tests (using Newman) if needed.
       - name: Run all modular E2E tests with Newman
         run: |
           for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
@@ -75,7 +66,12 @@ jobs:
             docker run --rm --network recipe-book-api-v2_default -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
           done
 
+      # Dump container logs for debugging.
+      - name: Dump container logs 
+        if: always()
+        run: docker compose logs
 
+      # Tear down the Docker Compose services.
       - name: Tear Down Docker Compose Services
         if: always()
         run: docker compose down
