@@ -36,14 +36,14 @@ func TestIntegration_RegisterAndLogin(t *testing.T) {
 	regResp, err := client.Register(context.Background(), &proto.CreateUserRequest{
 		Email:       uniqueEmail,
 		Username:    uniqueUsername,
-		Password:    "inttestpassword", // Plain password per proto.
+		Password:    "inttestpassword", // Plain password as defined in proto.
 		Preferences: "{\"diet\":\"vegan\"}",
 	})
 	assert.NoError(t, err, "Expected no error during registration")
 	assert.NotEmpty(t, regResp.UserId, "Expected userId in registration response")
 
-	// Wait briefly to allow the DB commit.
-	time.Sleep(500 * time.Millisecond)
+	// Wait for the record to be fully committed.
+	time.Sleep(2 * time.Second)
 
 	// 2. Login via gRPC.
 	loginResp, err := client.Login(context.Background(), &proto.LoginRequest{
@@ -80,8 +80,8 @@ func TestIntegration_InvalidLogin(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	// Wait briefly to allow the DB commit.
-	time.Sleep(500 * time.Millisecond)
+	// Wait briefly for the record to be available.
+	time.Sleep(2 * time.Second)
 
 	// 2. Attempt to log in with the wrong password.
 	loginResp, err := client.Login(context.Background(), &proto.LoginRequest{
