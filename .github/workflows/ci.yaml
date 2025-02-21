@@ -52,8 +52,10 @@ jobs:
           echo "Checking API health at: $URL"
           sleep 20
           for i in {1..20}; do
+            echo "Attempt $i:"
+            curl -v "$URL"
             status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-            echo "Attempt $i: HTTP status $status"
+            echo "HTTP status $status"
             if [ "$status" -eq 200 ]; then
               echo "API is ready"
               exit 0
@@ -62,8 +64,6 @@ jobs:
           done
           echo "API did not become healthy in time"
           exit 1
-
-
 
       # Run Go tests.
       - name: Run Go tests
