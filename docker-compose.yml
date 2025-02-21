@@ -20,6 +20,7 @@ services:
 
   api:
     build: .
+    entrypoint: []
     command: ["go", "run", "cmd/api-gateway/main.go"]
     networks:
       - backend
