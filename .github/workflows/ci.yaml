@@ -11,6 +11,8 @@ on:
 env:
   ACTIONS_RUNNER_DEBUG: true
   ACTIONS_STEP_DEBUG: true
+  GRPC_DIAL_ADDRESS: localhost:50051
+
 
 jobs:
   build-and-test:

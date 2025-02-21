@@ -2,6 +2,7 @@ package users_test
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -12,12 +13,18 @@ import (
 	"google.golang.org/grpc"
 )
 
+// setupTestClient connects to the gRPC server using the address specified in the environment variable GRPC_DIAL_ADDRESS.
+// If not set, it defaults to "grpc-server:50051".
 func setupTestClient() proto.UserServiceClient {
-	// Allow some time for the server to be ready.
+	// Allow time for the server to be ready.
 	time.Sleep(2 * time.Second)
 
-	// Connect using the Docker service name.
-	conn, err := grpc.Dial("grpc-server:50051", grpc.WithInsecure())
+	addr := os.Getenv("GRPC_DIAL_ADDRESS")
+	if addr == "" {
+		addr = "grpc-server:50051"
+	}
+
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		panic("Failed to connect to gRPC server: " + err.Error())
 	}
@@ -80,7 +87,7 @@ func TestIntegration_InvalidLogin(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	// Wait briefly for the record to be available.
+	// Wait for the record to be committed.
 	time.Sleep(2 * time.Second)
 
 	// 2. Attempt to log in with the wrong password.
