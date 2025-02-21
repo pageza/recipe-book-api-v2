@@ -17,32 +17,41 @@ import (
 )
 
 func main() {
-	// Load configuration and connect to the database
+	// Load configuration and log it.
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+	log.Printf("Configuration loaded: PORT=%s, DB_HOST=%s, DB_NAME=%s", cfg.Port, cfg.DBHost, cfg.DBName)
+
+	// Connect to the database.
 	db, err := config.ConnectDatabase(cfg)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
+	log.Println("Database connection established")
 
-	// Initialize repositories, services, and handlers
+	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
 	userHandler := users.NewUserHandler(userService, cfg.JWTSecret)
 
-	// Combine all handlers into a composite struct
+	// Combine all handlers into a composite struct.
 	h := &handlers.Handlers{
 		User: userHandler,
-		// Recipe: recipeHandler,
+		// Add other handlers as needed.
 	}
 
-	// Initialize the router using the composite handlers
+	// Initialize the router using the composite handlers.
 	r := routes.NewRouter(cfg, h)
 
-	// Start the server
-	if err := r.Run(":" + cfg.Port); err != nil {
+	// Log the final router configuration.
+	log.Println("Router initialized, ready to start server")
+
+	// Start the server.
+	addr := ":" + cfg.Port
+	log.Printf("Starting API server on %s", addr)
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("failed to run server: %v", err)
 	}
 }

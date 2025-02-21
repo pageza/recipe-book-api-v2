@@ -39,6 +39,7 @@ services:
 
   grpc-server:
     build: .
+    command: ["go","run.","cmd/grpc-server/main.go"]
     networks:
       - backend
     ports:
