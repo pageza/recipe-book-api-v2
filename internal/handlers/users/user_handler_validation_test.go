@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
+	"github.com/pageza/recipe-book-api-v2/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,13 +28,13 @@ func (e *errorUserService) Register(user *models.User) error {
 }
 
 func (e *errorUserService) Login(email, password string) (*models.User, error) {
-	// Simulate invalid credentials error.
-	return nil, errors.New("invalid credentials")
+	// Simulate invalid credentials error using the sentinel error.
+	return nil, service.ErrInvalidCredentials
 }
 
 func (e *errorUserService) GetProfile(userID string) (*models.User, error) {
-	// Simulate "user not found" error.
-	return nil, errors.New("user not found")
+	// Simulate "user not found" error using the sentinel error.
+	return nil, service.ErrUserNotFound
 }
 
 // duplicateUserService simulates a duplicate registration scenario.
@@ -43,7 +44,8 @@ type duplicateUserService struct {
 
 func (d *duplicateUserService) Register(user *models.User) error {
 	if d.registered {
-		return errors.New("user already exists")
+		// Return the sentinel error for duplicate registration.
+		return service.ErrUserAlreadyExists
 	}
 	d.registered = true
 	return nil
@@ -103,7 +105,7 @@ func TestRegisterValidation_MissingEmail(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Expect an error status (e.g., 400 Bad Request) due to missing email.
+	// Expect a 400 Bad Request status due to missing email.
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Expected status 400 for missing email")
 }
 
@@ -160,7 +162,7 @@ func TestRegisterDuplicate(t *testing.T) {
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)
-	// Expect a conflict status (409 Conflict) or your chosen error code.
+	// Expect a conflict status (409 Conflict) for duplicate registration.
 	assert.Equal(t, http.StatusConflict, w2.Code, "Expected duplicate registration to return conflict")
 }
 
@@ -178,8 +180,6 @@ func TestGetProfileSuccess(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("GET", "/profile", nil)
-	// Normally, authentication middleware would validate and set the user ID.
-	// For testing, we are bypassing that by setting it manually in the handler above.
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
