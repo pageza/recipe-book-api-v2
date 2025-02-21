@@ -13,7 +13,7 @@ import (
 )
 
 func setupTestClient() proto.UserServiceClient {
-	// Allow some time for the gRPC server to be ready.
+	// Allow some time for the server to be ready.
 	time.Sleep(2 * time.Second)
 
 	// Connect using the Docker service name.
@@ -36,11 +36,14 @@ func TestIntegration_RegisterAndLogin(t *testing.T) {
 	regResp, err := client.Register(context.Background(), &proto.CreateUserRequest{
 		Email:       uniqueEmail,
 		Username:    uniqueUsername,
-		Password:    "inttestpassword", // Plain password per proto definition.
+		Password:    "inttestpassword", // Plain password per proto.
 		Preferences: "{\"diet\":\"vegan\"}",
 	})
 	assert.NoError(t, err, "Expected no error during registration")
 	assert.NotEmpty(t, regResp.UserId, "Expected userId in registration response")
+
+	// Wait briefly to allow the DB commit.
+	time.Sleep(500 * time.Millisecond)
 
 	// 2. Login via gRPC.
 	loginResp, err := client.Login(context.Background(), &proto.LoginRequest{
@@ -76,6 +79,9 @@ func TestIntegration_InvalidLogin(t *testing.T) {
 		Preferences: "{\"diet\":\"vegetarian\"}",
 	})
 	assert.NoError(t, err)
+
+	// Wait briefly to allow the DB commit.
+	time.Sleep(500 * time.Millisecond)
 
 	// 2. Attempt to log in with the wrong password.
 	loginResp, err := client.Login(context.Background(), &proto.LoginRequest{
