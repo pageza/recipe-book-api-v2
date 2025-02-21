@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,8 +21,18 @@ func NewRouter(cfg *config.Config, h *handlers.Handlers) *gin.Engine {
 	// Apply global middleware
 	router.Use(middleware.Logger())
 
-	// Healthcheck endpoint (could be a simple Gin handler as well)
+	// Healthcheck endpoint with extra logging
 	router.GET("/healthcheck", func(c *gin.Context) {
+		// Log the request details
+		c.Writer.Header().Set("X-Healthcheck", "true")
+		log.Println("[Healthcheck] Received request for /healthcheck")
+		// Optionally log request headers (if you want extra detail)
+		for key, vals := range c.Request.Header {
+			for _, val := range vals {
+				log.Printf("[Healthcheck] Header %s: %s", key, val)
+			}
+		}
+		// Write out a simple response.
 		c.String(http.StatusOK, "OK")
 	})
 
