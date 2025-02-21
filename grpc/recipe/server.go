@@ -66,7 +66,7 @@ func (s *Server) GetRecipe(ctx context.Context, req *pb.GetRecipeRequest) (*pb.G
 
 // ListRecipes implements the ListRecipes RPC.
 func (s *Server) ListRecipes(ctx context.Context, req *pb.ListRecipesRequest) (*pb.ListRecipesResponse, error) {
-	recipes, err := s.svc.GetAllRecipes()
+	recipes, err := s.svc.ListRecipes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list recipes: %v", err)
 	}
