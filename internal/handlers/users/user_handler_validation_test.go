@@ -109,6 +109,57 @@ func TestRegisterValidation_MissingEmail(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Expected status 400 for missing email")
 }
 
+func TestRegisterInvalidEmailFormat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &errorUserService{}
+	handler := users.NewUserHandler(svc, "testsecret")
+	router := gin.Default()
+	router.POST("/register", handler.Register)
+
+	// Create payload with an invalid email format.
+	payload := users.RegisterInput{
+		Username:    "testuser",
+		Email:       "invalid-email", // Invalid format.
+		Password:    "password",
+		Preferences: map[string]interface{}{"diet": "vegan"},
+	}
+	b, err := json.Marshal(payload)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Gin binding should catch the invalid email format and return 400.
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Expected status 400 for invalid email format")
+}
+
+func TestRegisterMissingPassword(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &errorUserService{}
+	handler := users.NewUserHandler(svc, "testsecret")
+	router := gin.Default()
+	router.POST("/register", handler.Register)
+
+	// Create payload omitting the password field.
+	payload := map[string]interface{}{
+		"username":    "testuser",
+		"email":       "testuser@example.com",
+		"preferences": map[string]interface{}{"diet": "vegan"},
+	}
+	b, err := json.Marshal(payload)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Expect 400 due to missing password.
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Expected status 400 for missing password")
+}
+
 func TestLoginErrorHandling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &errorUserService{}
@@ -131,6 +182,53 @@ func TestLoginErrorHandling(t *testing.T) {
 
 	// Expect a 401 Unauthorized status when credentials are invalid.
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Expected status 401 for invalid login")
+}
+
+func TestLoginMissingPassword(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &errorUserService{}
+	handler := users.NewUserHandler(svc, "testsecret")
+	router := gin.Default()
+	router.POST("/login", handler.Login)
+
+	// Create a login payload missing the password field.
+	payload := map[string]string{
+		"email": "testuser@example.com",
+	}
+	b, err := json.Marshal(payload)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Expect a 400 status for missing password.
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Expected status 400 for missing password in login")
+}
+
+func TestLoginInvalidEmailFormat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &errorUserService{}
+	handler := users.NewUserHandler(svc, "testsecret")
+	router := gin.Default()
+	router.POST("/login", handler.Login)
+
+	// Create a login payload with an invalid email format.
+	payload := map[string]string{
+		"email":    "invalid-email",
+		"password": "password",
+	}
+	b, err := json.Marshal(payload)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest("POST", "/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Expect a 400 status due to invalid email format.
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Expected status 400 for invalid email format in login")
 }
 
 func TestRegisterDuplicate(t *testing.T) {
