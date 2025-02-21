@@ -20,7 +20,7 @@ services:
 
   api:
     build: .
-    command: ["go", "run", "cmd/grpc-server/main.go"]
+    command: ["go", "run", "cmd/api-gateway/main.go"]
     networks:
       - backend
     ports:
