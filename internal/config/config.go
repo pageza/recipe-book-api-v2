@@ -9,29 +9,32 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pageza/recipe-book-api-v2/internal/models" // ✅ Import Notification model
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 type Config struct {
-	Port       string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	JWTSecret  string
+	DatabaseURL string
+	Port        string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	JWTSecret   string
 }
 
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
-		Port:       getEnv("PORT", "8080"),
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "postgres"),
-		DBName:     getEnv("DB_NAME", "recipe_db"),
-		JWTSecret:  getEnv("JWT_SECRET", "your_jwt_secret"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Port:        getEnv("PORT", "8080"),
+		DBHost:      getEnv("DB_HOST", "localhost"),
+		DBPort:      getEnv("DB_PORT", "5432"),
+		DBUser:      getEnv("DB_USER", "postgres"),
+		DBPassword:  getEnv("DB_PASSWORD", "postgres"),
+		DBName:      getEnv("DB_NAME", "recipe_db"),
+		JWTSecret:   getEnv("JWT_SECRET", "your_jwt_secret"),
 	}
 	return cfg, nil
 }
@@ -39,7 +42,19 @@ func LoadConfig() (*Config, error) {
 func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
-	return gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	// ✅ Auto-migrate the notifications table
+	err = db.AutoMigrate(&models.Notification{})
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 func getEnv(key, fallback string) string {

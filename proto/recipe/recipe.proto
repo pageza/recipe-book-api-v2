@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package recipe;
+
+option go_package = "./proto;proto";
+
+service RecipeService {
+  rpc CreateRecipe (CreateRecipeRequest) returns (CreateRecipeResponse);
+  rpc GetRecipe (GetRecipeRequest) returns (GetRecipeResponse);
+  rpc ListRecipes (ListRecipesRequest) returns (ListRecipesResponse);
+}
+
+message CreateRecipeRequest {
+  string title = 1;
+  string ingredients = 2;
+  string steps = 3;
+}
+
+message CreateRecipeResponse {
+  string recipeId = 1;
+  string message = 2;
+}
+
+message GetRecipeRequest {
+  string recipeId = 1;
+}
+
+message GetRecipeResponse {
+  string title = 1;
+  string ingredients = 2;
+  string steps = 3;
+}
+
+message ListRecipesRequest {}
+
+message ListRecipesResponse {
+  repeated GetRecipeResponse recipes = 1;
+}

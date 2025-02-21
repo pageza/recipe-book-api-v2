@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package user;
+
+// Ensure the go_package points to the correct location in your project
+option go_package = "./proto;proto";
+
+service UserService {
+  rpc Register(CreateUserRequest) returns (CreateUserResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string preferences = 4;
+}
+
+message CreateUserResponse {
+  string userId = 1;
+  string message = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string userId = 1;
+  string token = 2;
+}
+
+message GetProfileRequest {
+  string userId = 1;
+}
+
+message GetProfileResponse {
+  string username = 1;
+  string email = 2;
+  string preferences = 3;
+}
