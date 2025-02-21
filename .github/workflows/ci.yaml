@@ -48,22 +48,28 @@ jobs:
       # Wait for API to be Ready (adjust URL and timing as needed).
       - name: Wait for API to be Ready
         run: |
-          URL="http://host.docker.internal:8080/healthcheck"
+          URL="http://localhost:8080/healthcheck"
           echo "Checking API health at: $URL"
-          sleep 20
+          # Increase the initial wait time to ensure the container is up.
+          sleep 30
           for i in {1..20}; do
-            echo "Attempt $i:"
-            curl -v "$URL"
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-            echo "HTTP status $status"
-            if [ "$status" -eq 200 ]; then
-              echo "API is ready"
-              exit 0
+            echo "Attempt $i: Checking if port 8080 is open..."
+            if nc -z localhost 8080; then
+              echo "Port 8080 is open. Now checking HTTP status..."
+              status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+              echo "HTTP status: $status"
+              if [ "$status" -eq 200 ]; then
+                echo "API is ready"
+                exit 0
+              fi
+            else
+              echo "Port 8080 is not open yet"
             fi
             sleep 5
           done
           echo "API did not become healthy in time"
           exit 1
+
 
       # Run Go tests.
       - name: Run Go tests
