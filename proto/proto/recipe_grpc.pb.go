@@ -22,6 +22,7 @@ const (
 	RecipeService_CreateRecipe_FullMethodName = "/recipe.RecipeService/CreateRecipe"
 	RecipeService_GetRecipe_FullMethodName    = "/recipe.RecipeService/GetRecipe"
 	RecipeService_ListRecipes_FullMethodName  = "/recipe.RecipeService/ListRecipes"
+	RecipeService_QueryRecipe_FullMethodName  = "/recipe.RecipeService/QueryRecipe"
 )
 
 // RecipeServiceClient is the client API for RecipeService service.
@@ -31,6 +32,7 @@ type RecipeServiceClient interface {
 	CreateRecipe(ctx context.Context, in *CreateRecipeRequest, opts ...grpc.CallOption) (*CreateRecipeResponse, error)
 	GetRecipe(ctx context.Context, in *GetRecipeRequest, opts ...grpc.CallOption) (*GetRecipeResponse, error)
 	ListRecipes(ctx context.Context, in *ListRecipesRequest, opts ...grpc.CallOption) (*ListRecipesResponse, error)
+	QueryRecipe(ctx context.Context, in *RecipeQueryRequest, opts ...grpc.CallOption) (*RecipeQueryResponse, error)
 }
 
 type recipeServiceClient struct {
@@ -71,6 +73,16 @@ func (c *recipeServiceClient) ListRecipes(ctx context.Context, in *ListRecipesRe
 	return out, nil
 }
 
+func (c *recipeServiceClient) QueryRecipe(ctx context.Context, in *RecipeQueryRequest, opts ...grpc.CallOption) (*RecipeQueryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RecipeQueryResponse)
+	err := c.cc.Invoke(ctx, RecipeService_QueryRecipe_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RecipeServiceServer is the server API for RecipeService service.
 // All implementations must embed UnimplementedRecipeServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type RecipeServiceServer interface {
 	CreateRecipe(context.Context, *CreateRecipeRequest) (*CreateRecipeResponse, error)
 	GetRecipe(context.Context, *GetRecipeRequest) (*GetRecipeResponse, error)
 	ListRecipes(context.Context, *ListRecipesRequest) (*ListRecipesResponse, error)
+	QueryRecipe(context.Context, *RecipeQueryRequest) (*RecipeQueryResponse, error)
 	mustEmbedUnimplementedRecipeServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedRecipeServiceServer) GetRecipe(context.Context, *GetRecipeReq
 }
 func (UnimplementedRecipeServiceServer) ListRecipes(context.Context, *ListRecipesRequest) (*ListRecipesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRecipes not implemented")
+}
+func (UnimplementedRecipeServiceServer) QueryRecipe(context.Context, *RecipeQueryRequest) (*RecipeQueryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueryRecipe not implemented")
 }
 func (UnimplementedRecipeServiceServer) mustEmbedUnimplementedRecipeServiceServer() {}
 func (UnimplementedRecipeServiceServer) testEmbeddedByValue()                       {}
@@ -172,6 +188,24 @@ func _RecipeService_ListRecipes_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RecipeService_QueryRecipe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecipeQueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RecipeServiceServer).QueryRecipe(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RecipeService_QueryRecipe_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RecipeServiceServer).QueryRecipe(ctx, req.(*RecipeQueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RecipeService_ServiceDesc is the grpc.ServiceDesc for RecipeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var RecipeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRecipes",
 			Handler:    _RecipeService_ListRecipes_Handler,
+		},
+		{
+			MethodName: "QueryRecipe",
+			Handler:    _RecipeService_QueryRecipe_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

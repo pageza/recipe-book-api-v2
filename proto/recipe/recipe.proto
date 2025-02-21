@@ -8,31 +8,51 @@ service RecipeService {
   rpc CreateRecipe (CreateRecipeRequest) returns (CreateRecipeResponse);
   rpc GetRecipe (GetRecipeRequest) returns (GetRecipeResponse);
   rpc ListRecipes (ListRecipesRequest) returns (ListRecipesResponse);
+  rpc QueryRecipe (RecipeQueryRequest) returns (RecipeQueryResponse);
 }
 
 message CreateRecipeRequest {
   string title = 1;
-  string ingredients = 2;
-  string steps = 3;
+  string ingredients = 2;          // JSON string of detailed ingredients
+  string steps = 3;                // JSON string of step-by-step instructions
+  string nutritional_info = 4;     // JSON string with nutritional breakdown (calories, macros, etc.)
+  string allergy_disclaimer = 5;   // Disclaimer about potential allergy risks
+  string appliances = 6;           // JSON string of required appliances/cookware
 }
 
 message CreateRecipeResponse {
-  string recipeId = 1;
+  string recipe_id = 1;
   string message = 2;
 }
 
 message GetRecipeRequest {
-  string recipeId = 1;
+  string recipe_id = 1;
 }
 
 message GetRecipeResponse {
-  string title = 1;
-  string ingredients = 2;
-  string steps = 3;
+  string recipe_id = 1;
+  string title = 2;
+  string ingredients = 3;
+  string steps = 4;
+  string nutritional_info = 5;
+  string allergy_disclaimer = 6;
+  string appliances = 7;
+  int64 created_at = 8;  // Unix timestamp (seconds or milliseconds, depending on your implementation)
+  int64 updated_at = 9;
 }
 
 message ListRecipesRequest {}
 
 message ListRecipesResponse {
   repeated GetRecipeResponse recipes = 1;
+}
+
+message RecipeQueryRequest {
+  string query = 1; // e.g., "vegan only", "only use chicken", etc.
+  // Additional filtering parameters can be added here in the future.
+}
+
+message RecipeQueryResponse {
+  GetRecipeResponse primary_recipe = 1;
+  repeated GetRecipeResponse alternative_recipes = 2;
 }
