@@ -7,6 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
+type DB = *gorm.DB
+
 // DB is an alias for gorm.DB.
 // In your code, repository.DB is expected to be this type.
 func ConnectTestDB() (*gorm.DB, error) {
