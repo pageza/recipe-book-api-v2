@@ -46,6 +46,12 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
+	// Validate that email is provided.
+	if input.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email cannot be empty"})
+		return
+	}
+
 	// Hash the password before storing it.
 	hashed, err := utils.HashPassword(input.Password)
 	if err != nil {
@@ -53,7 +59,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Convert the map to a JSON string.
+	// Convert preferences to a JSON string.
 	prefBytes, err := json.Marshal(input.Preferences)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not process preferences"})
@@ -74,8 +80,8 @@ func (h *UserHandler) Register(c *gin.Context) {
 		user.ID = uuid.New().String()
 	}
 
+	// Attempt to register the user via the service layer.
 	if err := h.service.Register(user); err != nil {
-		// Check for duplicate user registration.
 		if errors.Is(err, service.ErrUserAlreadyExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		} else {

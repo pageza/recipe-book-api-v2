@@ -152,7 +152,7 @@ func TestIntegration_RegisterEmptyEmail(t *testing.T) {
 	st, ok := status.FromError(err)
 	assert.True(t, ok, "Expected gRPC status error")
 	// Adjust the expected substring as per your service's response.
-	assert.Contains(t, st.Message(), "user already exists", "Expected error message indicating duplicate or missing email")
+	assert.Contains(t, st.Message(), "user already exists", "Expected error message indicating missing email")
 	// Optionally, if a response is returned, ensure that the Email field in the response is empty.
 	if regResp != nil {
 		// Since CreateUserResponse doesn't have an Email field, we check for UserId only.
