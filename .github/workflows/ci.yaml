@@ -93,4 +93,4 @@ jobs:
       # Tear down the Docker Compose services.
       - name: Tear Down Docker Compose Services
         if: always()
-        run: docker compose down
+        run: docker compose down -v
