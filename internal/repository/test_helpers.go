@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -9,10 +11,14 @@ import (
 
 type DB = *gorm.DB
 
-// DB is an alias for gorm.DB.
-// In your code, repository.DB is expected to be this type.
+// ConnectTestDB connects to the test database with retries.
 func ConnectTestDB() (*gorm.DB, error) {
-	dsn := "host=postgres user=postgres password=postgres dbname=recipe_db port=5432 sslmode=disable TimeZone=UTC"
+	// Read DB_HOST from environment, default to "postgres" if not set.
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "postgres"
+	}
+	dsn := fmt.Sprintf("host=%s user=postgres password=postgres dbname=recipe_db port=5432 sslmode=disable TimeZone=UTC", dbHost)
 	var db *gorm.DB
 	var err error
 	maxRetries := 10
@@ -21,7 +27,6 @@ func ConnectTestDB() (*gorm.DB, error) {
 		if err == nil {
 			return db, nil
 		}
-		// Wait for 2 seconds before retrying
 		time.Sleep(3 * time.Second)
 	}
 	return nil, err
