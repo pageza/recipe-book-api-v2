@@ -6,6 +6,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
@@ -31,6 +32,14 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	log.Println("Database connection established")
+
+	// In CI, drop existing tables to ensure a clean state.
+	if os.Getenv("CI") == "true" {
+		log.Println("CI environment detected, dropping existing tables")
+		if err := db.Migrator().DropTable(&models.User{}, &models.Recipe{}); err != nil {
+			log.Fatalf("failed to drop tables: %v", err)
+		}
+	}
 
 	// Run migrations for required models.
 	err = db.AutoMigrate(&models.User{}, &models.Recipe{})
