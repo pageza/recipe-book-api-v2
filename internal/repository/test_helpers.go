@@ -15,14 +15,14 @@ func ConnectTestDB() (*gorm.DB, error) {
 	dsn := "host=postgres user=postgres password=postgres dbname=recipe_db port=5432 sslmode=disable TimeZone=UTC"
 	var db *gorm.DB
 	var err error
-	maxRetries := 5
+	maxRetries := 10
 	for i := 0; i < maxRetries; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
 			return db, nil
 		}
 		// Wait for 2 seconds before retrying
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 	return nil, err
 }
