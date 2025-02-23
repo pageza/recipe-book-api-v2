@@ -2,7 +2,6 @@
 Copyright (C) 2025 Your Company
 All Rights Reserved.
 */
-
 package main
 
 import (
@@ -10,7 +9,9 @@ import (
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
+	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
+	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 	"github.com/pageza/recipe-book-api-v2/internal/routes"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
@@ -31,21 +32,31 @@ func main() {
 	}
 	log.Println("Database connection established")
 
+	// Run migrations for required models.
+	err = db.AutoMigrate(&models.User{}, &models.Recipe{})
+	if err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+	log.Println("Database migrations complete")
+
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
 	userHandler := users.NewUserHandler(userService, cfg.JWTSecret)
 
+	recipeRepo := repository.NewRecipeRepository(db)
+	recipeService := service.NewRecipeService(recipeRepo)
+	recipeHandler := recipes.NewRecipeHandler(recipeService)
+
 	// Combine all handlers into a composite struct.
 	h := &handlers.Handlers{
-		User: userHandler,
-		// Add other handlers as needed.
+		User:   userHandler,
+		Recipe: recipeHandler,
+		// Add notifications handler when ready.
 	}
 
 	// Initialize the router using the composite handlers.
 	r := routes.NewRouter(cfg, h)
-
-	// Log the final router configuration.
 	log.Println("Router initialized, ready to start server")
 
 	// Start the server.

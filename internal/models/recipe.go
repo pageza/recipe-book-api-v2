@@ -16,8 +16,7 @@ type Recipe struct {
 	// Additional fields can be added here (e.g., user preferences, history, pantry tracking placeholders)
 }
 
-// RecipeQueryResponse represents the structure returned for a recipe query.
+// RecipeQueryResponse is a container for query results.
 type RecipeQueryResponse struct {
-	PrimaryRecipe Recipe   `json:"primary_recipe"`
-	Alternatives  []Recipe `json:"alternative_recipes,omitempty"`
+	Recipes []*Recipe `json:"recipes"`
 }

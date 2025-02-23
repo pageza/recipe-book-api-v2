@@ -10,6 +10,7 @@ import (
 )
 
 // RecipeService defines the interface for recipe operations.
+// RecipeService defines the interface for recipe operations.
 type RecipeService interface {
 	CreateRecipe(recipe *models.Recipe) error
 	// GetRecipe retrieves a recipe by its ID.
@@ -20,6 +21,8 @@ type RecipeService interface {
 	GetAllRecipes() ([]*models.Recipe, error)
 	// GetRecipeByQuery returns a recipe based on a query string.
 	GetRecipeByQuery(query string) (*models.Recipe, error)
+	// QueryRecipes returns a list of recipes matching the query.
+	QueryRecipes(query string) (*models.RecipeQueryResponse, error)
 }
 
 // recipeService implements RecipeService.
@@ -64,6 +67,16 @@ func (s *recipeService) GetAllRecipes() ([]*models.Recipe, error) {
 func (s *recipeService) GetRecipeByQuery(query string) (*models.Recipe, error) {
 	// TODO: Implement query logic using your RAG system.
 	return nil, errors.New("query recipe not implemented")
+}
+
+// QueryRecipes returns a response containing recipes matching the query.
+func (s *recipeService) QueryRecipes(query string) (*models.RecipeQueryResponse, error) {
+	// For now, simply return all recipes.
+	recipes, err := s.ListRecipes()
+	if err != nil {
+		return nil, err
+	}
+	return &models.RecipeQueryResponse{Recipes: recipes}, nil
 }
 
 // Dummy helper to generate an ID.
