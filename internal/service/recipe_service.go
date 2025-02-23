@@ -68,6 +68,6 @@ func (s *recipeService) GetRecipeByQuery(query string) (*models.Recipe, error) {
 
 // Dummy helper to generate an ID.
 func generateID() string {
-	// Use a proper UUID generator in production code.
+	// TODO: Use a proper UUID generator in production code.
 	return "some-generated-id"
 }
