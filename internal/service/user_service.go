@@ -41,6 +41,11 @@ func NewUserService(repo repository.UserRepository) UserService {
 
 // Register creates a new user. It returns ErrUserAlreadyExists if the email is already registered.
 func (s *userService) Register(user *models.User) error {
+
+	if user.Email == "" {
+		return errors.New("email cannot be empty")
+	}
+
 	if existing, _ := s.repo.GetUserByEmail(user.Email); existing != nil {
 		log.Printf("Register: duplicate registration attempted for email: %s", user.Email)
 		return ErrUserAlreadyExists
@@ -57,6 +62,7 @@ func (s *userService) Register(user *models.User) error {
 // Login verifies user credentials. It returns ErrUserNotFound if the user does not exist,
 // and ErrInvalidCredentials if the password does not match.
 func (s *userService) Login(email, password string) (*models.User, error) {
+
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
 		log.Printf("Login: user with email (%s) not found: %v", email, err)
