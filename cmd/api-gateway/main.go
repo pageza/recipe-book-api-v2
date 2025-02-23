@@ -7,6 +7,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
@@ -47,6 +48,11 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 	log.Println("Database migrations complete")
+	time.Sleep(5 * time.Second) // give the DB time to finalize DDL changes
+
+	if !db.Migrator().HasTable(&models.User{}) {
+		log.Fatalf("users table does not exist after migration")
+	}
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
