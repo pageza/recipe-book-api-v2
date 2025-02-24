@@ -12,12 +12,25 @@ env:
   ACTIONS_RUNNER_DEBUG: true
   ACTIONS_STEP_DEBUG: true
   GRPC_DIAL_ADDRESS: localhost:50051
-  DB_HOST: localhost
   GODEBUG: netdns=go
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: recipe_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out the code
         uses: actions/checkout@v3
@@ -31,51 +44,26 @@ jobs:
       - name: Build Docker images
         run: docker compose build --no-cache
 
-      # Create the external network "backend" if it doesn't exist.
-      - name: Create Docker network "backend"
-        run: |
-          if ! docker network inspect backend > /dev/null 2>&1; then
-            docker network create backend
-          else
-            echo "Network 'backend' already exists"
-          fi
-
-      # Start Postgres (and any other services) only.
-      - name: Start Postgres Service
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres
-
-      - name: Wait for Postgres to be Ready
-        run: |
-          echo "Waiting for Postgres to be ready..."
-          sleep 30
-
+      # (Optional) Create external network if needed—might not be necessary with service containers.
+      
       # Run migrations in a dedicated container.
       - name: Run Database Migrations
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml run migrate
 
-      - name: Verify Database Schema
-        run: |
-          CONTAINER_ID=$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q postgres)
-          echo "Using Postgres container: $CONTAINER_ID"
-          docker exec $CONTAINER_ID psql -U postgres -d recipe_db -c "\dt"
-
-
+      # Start the API and gRPC services.
       - name: Start API and gRPC Services
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d api grpc-server
 
-
-      - name: List Docker Compose Services After Migration
+      - name: List Docker Compose Services
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
 
-
-      # Wait for API to be Ready (adjust URL and timing as needed).
+      # Wait for API to be Ready.
       - name: Wait for API to be Ready
         run: |
           URL="http://localhost:8080/healthcheck"
           echo "Checking API health at: $URL"
           sleep 30
           for i in {1..20}; do
-            echo "Attempt $i: Checking if port 8080 is open..."
             if nc -z localhost 8080; then
               status=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
               echo "HTTP status: $status"
@@ -83,35 +71,28 @@ jobs:
                 echo "API is ready"
                 exit 0
               fi
-            else
-              echo "Port 8080 is not open yet"
             fi
             sleep 5
           done
           echo "API did not become healthy in time"
           exit 1
 
-      # Run Go tests.
       - name: Run Go tests
         env:
           DB_HOST: localhost
           GODEBUG: netdns=go
         run: go test -v ./...
 
-      # Run additional E2E tests (using Newman) if needed.
-      - name: Run all modular E2E tests with Newman
+      - name: Run E2E tests with Newman
         run: |
           for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
-            echo "Running tests in $file"
-            docker run --rm --network backend -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
+            docker run --rm --network host -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
           done
 
-      # Dump container logs for debugging.
       - name: Dump container logs 
         if: always()
-        run: docker compose logs 
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
 
-      # Tear down the Docker Compose services.
       - name: Tear Down Docker Compose Services
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
