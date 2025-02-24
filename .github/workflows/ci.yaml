@@ -54,9 +54,9 @@ jobs:
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml run migrate
 
 
-      # Start all required services.
-      - name: Start Docker Compose Services
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+      - name: Start API and gRPC Services
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d api grpc-server
+
 
       - name: List Docker Compose Services
         run: docker compose ps
