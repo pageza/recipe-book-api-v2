@@ -2,7 +2,7 @@
 Copyright (C) 2025 Your Company
 All Rights Reserved.
 */
-
+// config/config.go
 package config
 
 import (

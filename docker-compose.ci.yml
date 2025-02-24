@@ -1,4 +1,7 @@
+# docker-compose.ci.yaml
 services:
+  postgres:
+    external: true
   api:
     environment:
       - CI=true
