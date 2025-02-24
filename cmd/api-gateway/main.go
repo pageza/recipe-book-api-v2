@@ -8,6 +8,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
@@ -35,26 +36,31 @@ func main() {
 	}
 	log.Println("Database connection established")
 
-	// Run migrations for required models.
-	err = db.AutoMigrate(&models.User{}, &models.Recipe{})
-	if err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
-	log.Println("Database migrations initiated")
-
-	// Wait until the "users" table is confirmed to exist.
-	maxWait := 30 * time.Second
-	interval := 2 * time.Second
-	waited := time.Duration(0)
-	for !db.Migrator().HasTable(&models.User{}) {
-		if waited >= maxWait {
-			log.Fatalf("users table does not exist after waiting %v", maxWait)
+	// Check if we should skip migrations (i.e. if they've been run already).
+	if os.Getenv("SKIP_MIGRATIONS") != "true" {
+		// Run migrations for required models.
+		err = db.AutoMigrate(&models.User{}, &models.Recipe{})
+		if err != nil {
+			log.Fatalf("failed to run migrations: %v", err)
 		}
-		log.Println("Waiting for users table to be created...")
-		time.Sleep(interval)
-		waited += interval
+		log.Println("Database migrations initiated")
+
+		// Wait until the "users" table is confirmed to exist.
+		maxWait := 30 * time.Second
+		interval := 2 * time.Second
+		waited := time.Duration(0)
+		for !db.Migrator().HasTable(&models.User{}) {
+			if waited >= maxWait {
+				log.Fatalf("users table does not exist after waiting %v", maxWait)
+			}
+			log.Println("Waiting for users table to be created...")
+			time.Sleep(interval)
+			waited += interval
+		}
+		log.Println("Database migrations complete: users table exists")
+	} else {
+		log.Println("Skipping migrations as SKIP_MIGRATIONS is set")
 	}
-	log.Println("Database migrations complete: users table exists")
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)

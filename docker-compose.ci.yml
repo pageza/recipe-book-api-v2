@@ -28,6 +28,7 @@ services:
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
+      - SKIP_MIGRATIONS=true
     network_mode: host
     depends_on:
       - migrate
