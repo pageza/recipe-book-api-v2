@@ -1,8 +1,6 @@
 # docker-compose.ci.yaml
 services:
-  postgres:
-    command: ["echo", "Using external Postgres service"]
-    ports: []
+  # Do not override postgres here – the GA service container is used.
   api:
     environment:
       - CI=true
@@ -23,9 +21,10 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # Remove the dependency on postgres since we aren’t using Compose’s Postgres.
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
   grpc-server:
     environment:
       - DB_HOST=localhost

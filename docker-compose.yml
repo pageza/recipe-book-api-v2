@@ -1,4 +1,3 @@
-# docker-compose.yml
 services:
   postgres:
     image: postgres:14
@@ -18,6 +17,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    profiles:
+      - local
 
   api:
     build: .
@@ -29,7 +30,7 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      - DB_HOST=postgres
+      - DB_HOST=postgres  # Locally, this resolves to the Compose postgres service.
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -41,7 +42,7 @@ services:
 
   grpc-server:
     build: .
-    command: ["go","run.","cmd/grpc-server/main.go"]
+    command: ["go", "run", "cmd/grpc-server/main.go"]
     networks:
       - backend
     ports:
@@ -58,6 +59,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
 networks:
   backend:
     external: true
