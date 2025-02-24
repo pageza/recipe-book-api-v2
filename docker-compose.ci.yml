@@ -29,4 +29,6 @@ services:
 
 networks:
   backend:
+    external: false
+    name: backend
     driver: bridge
