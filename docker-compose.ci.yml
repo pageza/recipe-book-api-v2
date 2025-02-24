@@ -1,11 +1,25 @@
+version: '3.9'
 services:
   api:
+    build: .
+    entrypoint: []
+    command: ["go", "run", "cmd/api-gateway/main.go"]
+    networks:
+      - backend
+    ports:
+      - "8080:8080"
     environment:
-      - CI=true
+      - PORT=8080
       - DB_HOST=localhost
-    depends_on: ~
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=recipe_db
+      - JWT_SECRET=your_jwt_secret
+      - CI=true
+
   migrate:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.migrate
     command: ["go", "run", "cmd/migrate/main.go"]
@@ -20,12 +34,24 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
-    depends_on: ~
+
   grpc-server:
+    build: .
+    command: ["go", "run", "cmd/grpc-server/main.go"]
+    networks:
+      - backend
+    ports:
+      - "50051:50051"
+      - "50052:50052"
+      - "50053:50053"
     environment:
       - DB_HOST=localhost
-    depends_on: ~
-  
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=recipe_db
+      - JWT_SECRET=your_jwt_secret
+
 networks:
   backend:
     driver: bridge
