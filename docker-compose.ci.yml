@@ -4,9 +4,9 @@ services:
     environment:
       - CI=true
       - DB_HOST=localhost
-    depends_on: {}
+    depends_on: []
   migrate:
-    build:
+    build: 
       context: .
       dockerfile: Dockerfile.migrate
     command: ["go", "run", "cmd/migrate/main.go"]
@@ -21,12 +21,12 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
-    depends_on: {}
+    depends_on: []
   grpc-server:
     environment:
       - DB_HOST=localhost
-    depends_on: {}
-  
+    depends_on: []
+
 networks:
   backend:
     driver: bridge
