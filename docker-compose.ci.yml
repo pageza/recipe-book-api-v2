@@ -1,4 +1,6 @@
+# docker-compose.ci.yml
 version: '3.9'
+
 services:
   api:
     build: .
@@ -17,6 +19,7 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
+    depends_on: []  # override postgres dependency
 
   migrate:
     build:
@@ -34,6 +37,7 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
+    depends_on: []  # override postgres dependency
 
   grpc-server:
     build: .
@@ -51,6 +55,7 @@ services:
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
+    depends_on: []  # override postgres dependency
 
 networks:
   backend:
