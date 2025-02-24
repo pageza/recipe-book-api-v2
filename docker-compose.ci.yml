@@ -1,4 +1,6 @@
 services:
+  postgres:
+    restart: no
   api:
     environment:
       - CI=true
