@@ -1,12 +1,12 @@
 # docker-compose.ci.yaml
 services:
-  # Do not override postgres here – the GA service container is used.
   api:
     environment:
       - CI=true
       - DB_HOST=localhost
+    depends_on: {}
   migrate:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.migrate
     command: ["go", "run", "cmd/migrate/main.go"]
@@ -21,14 +21,12 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
-    # Remove the dependency on postgres since we aren’t using Compose’s Postgres.
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
+    depends_on: {}
   grpc-server:
     environment:
       - DB_HOST=localhost
-
+    depends_on: {}
+  
 networks:
   backend:
     driver: bridge
