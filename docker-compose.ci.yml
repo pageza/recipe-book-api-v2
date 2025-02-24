@@ -2,3 +2,20 @@ services:
   api:
     environment:
       - CI=true
+  migrate:
+    build: .
+    command: ["go", "run", "cmd/migrate/main.go"]
+    networks:
+      - backend
+    environment:
+      - PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=recipe_db
+      - JWT_SECRET=your_jwt_secret
+      - CI=true
+    depends_on:
+      postgres:
+        condition: service_healthy
