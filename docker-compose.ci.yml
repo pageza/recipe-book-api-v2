@@ -26,3 +26,7 @@ services:
   grpc-server:
     environment:
       - DB_HOST=localhost
+
+networks:
+  backend:
+    driver: bridge
