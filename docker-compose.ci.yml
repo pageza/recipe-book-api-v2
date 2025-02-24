@@ -3,7 +3,9 @@ services:
     environment:
       - CI=true
   migrate:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile.migrate
     command: ["go", "run", "cmd/migrate/main.go"]
     networks:
       - backend
