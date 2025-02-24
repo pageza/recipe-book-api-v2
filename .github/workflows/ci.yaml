@@ -41,16 +41,16 @@ jobs:
           go-version: '1.24'
 
       - name: Build Docker images
-        run: docker compose -f docker-compose.ci.full.yml build --no-cache
+        run: docker compose -f docker-compose.ci.yml build --no-cache
 
       - name: Run Database Migrations
-        run: docker compose -f docker-compose.ci.full.yml run migrate
+        run: docker compose -f docker-compose.ci.yml run migrate
 
       - name: Start API and gRPC Services
-        run: docker compose -f docker-compose.ci.full.yml up -d api grpc-server
+        run: docker compose -f docker-compose.ci.yml up -d api grpc-server
 
       - name: List Docker Compose Services
-        run: docker compose -f docker-compose.ci.full.yml ps
+        run: docker compose -f docker-compose.ci.yml ps
       - name: Wait for API to be Ready
         run: |
           URL="http://localhost:8080/healthcheck"
@@ -88,4 +88,4 @@ jobs:
 
       - name: Tear Down Docker Compose Services
         if: always()
-        run: docker compose -f docker-compose.ci.full.yml down -v
+        run: docker compose -f docker-compose.ci.yml down -v
