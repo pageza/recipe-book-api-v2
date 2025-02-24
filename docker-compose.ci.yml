@@ -1,10 +1,9 @@
-# docker-compose.ci.yaml
 services:
   api:
     environment:
       - CI=true
       - DB_HOST=localhost
-    depends_on: []
+    depends_on: ~
   migrate:
     build: 
       context: .
@@ -21,12 +20,12 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
       - CI=true
-    depends_on: []
+    depends_on: ~
   grpc-server:
     environment:
       - DB_HOST=localhost
-    depends_on: []
-
+    depends_on: ~
+  
 networks:
   backend:
     driver: bridge
