@@ -1,5 +1,8 @@
 # docker-compose.ci.yaml
 services:
+  postgres:
+    command: ["echo", "Using external Postgres service"]
+    ports: []
   api:
     environment:
       - CI=true
@@ -29,6 +32,4 @@ services:
 
 networks:
   backend:
-    external: false
-    name: backend
     driver: bridge
