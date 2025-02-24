@@ -40,6 +40,20 @@ jobs:
             echo "Network 'backend' already exists"
           fi
 
+      # Start Postgres (and any other services) only.
+      - name: Start Postgres Service
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres
+
+      - name: Wait for Postgres to be Ready
+        run: |
+          echo "Waiting for Postgres to be ready..."
+          sleep 30
+
+      # Run migrations in a dedicated container.
+      - name: Run Database Migrations
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml run migrate
+
+
       # Start all required services.
       - name: Start Docker Compose Services
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
