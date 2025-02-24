@@ -1,4 +1,4 @@
-# docker-compose.ci.yml
+version: "3.9"
 services:
   migrate:
     build:
@@ -13,9 +13,9 @@ services:
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
-      - CI=true
     network_mode: host
-
+    # Note: This container is a one-off job. Its exit code determines success.
+    
   api:
     build: .
     entrypoint: []
@@ -28,8 +28,14 @@ services:
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
-      - CI=true
     network_mode: host
+    depends_on:
+      - migrate
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   grpc-server:
     build: .
@@ -42,3 +48,8 @@ services:
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
     network_mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

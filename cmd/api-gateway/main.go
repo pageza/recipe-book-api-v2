@@ -35,25 +35,26 @@ func main() {
 	}
 	log.Println("Database connection established")
 
-	// In CI, drop existing tables to ensure a clean state.
-	// if os.Getenv("CI") == "true" {
-	// 	log.Println("CI environment detected, dropping existing tables")
-	// 	if err := db.Migrator().DropTable(&models.User{}, &models.Recipe{}); err != nil {
-	// 		log.Fatalf("failed to drop tables: %v", err)
-	// 	}
-	// }
-
 	// Run migrations for required models.
 	err = db.AutoMigrate(&models.User{}, &models.Recipe{})
 	if err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
-	log.Println("Database migrations complete")
-	time.Sleep(5 * time.Second) // give the DB time to finalize DDL changes
+	log.Println("Database migrations initiated")
 
-	if !db.Migrator().HasTable(&models.User{}) {
-		log.Fatalf("users table does not exist after migration")
+	// Wait until the "users" table is confirmed to exist.
+	maxWait := 30 * time.Second
+	interval := 2 * time.Second
+	waited := time.Duration(0)
+	for !db.Migrator().HasTable(&models.User{}) {
+		if waited >= maxWait {
+			log.Fatalf("users table does not exist after waiting %v", maxWait)
+		}
+		log.Println("Waiting for users table to be created...")
+		time.Sleep(interval)
+		waited += interval
 	}
+	log.Println("Database migrations complete: users table exists")
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
