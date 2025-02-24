@@ -53,13 +53,20 @@ jobs:
       - name: Run Database Migrations
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml run migrate
 
+      - name: Verify Database Schema
+        run: |
+          CONTAINER_ID=$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q postgres)
+          echo "Using Postgres container: $CONTAINER_ID"
+          docker exec $CONTAINER_ID psql -U postgres -d recipe_db -c "\dt"
+
 
       - name: Start API and gRPC Services
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d api grpc-server
 
 
-      - name: List Docker Compose Services
-        run: docker compose ps
+      - name: List Docker Compose Services After Migration
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
+
 
       # Wait for API to be Ready (adjust URL and timing as needed).
       - name: Wait for API to be Ready
