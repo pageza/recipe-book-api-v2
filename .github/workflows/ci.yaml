@@ -1,4 +1,3 @@
-# ci.yaml
 name: CI Pipeline
 
 on:
@@ -53,8 +52,27 @@ jobs:
       - name: Start API and gRPC Services
         run: docker compose -f docker-compose.ci.yml up -d api grpc-server
 
+      - name: Wait for DB Schema
+        run: |
+          # Get the container ID for the postgres service
+          PG_CONTAINER=$(docker compose -f docker-compose.ci.yml ps -q postgres)
+          echo "Waiting for users table to be created in Postgres (container: $PG_CONTAINER)..."
+          for i in {1..30}; do
+            RESULT=$(docker exec $PG_CONTAINER psql -U postgres -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
+            echo "Result: '$RESULT'"
+            if [ "$RESULT" = "users" ]; then
+              echo "Users table exists."
+              exit 0
+            fi
+            echo "Waiting for users table... attempt $i"
+            sleep 2
+          done
+          echo "Users table not found after waiting."
+          exit 1
+
       - name: List Docker Compose Services
         run: docker compose -f docker-compose.ci.yml ps
+
       - name: Wait for API to be Ready
         run: |
           URL="http://localhost:8080/healthcheck"
