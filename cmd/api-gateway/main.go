@@ -36,31 +36,41 @@ func main() {
 	}
 	log.Println("Database connection established")
 
-	// Check if we should skip migrations (i.e. if they've been run already).
+	// Run migrations unless we're instructed to skip them.
 	if os.Getenv("SKIP_MIGRATIONS") != "true" {
-		// Run migrations for required models.
 		err = db.AutoMigrate(&models.User{}, &models.Recipe{})
 		if err != nil {
 			log.Fatalf("failed to run migrations: %v", err)
 		}
 		log.Println("Database migrations initiated")
-
-		// Wait until the "users" table is confirmed to exist.
-		maxWait := 30 * time.Second
-		interval := 2 * time.Second
-		waited := time.Duration(0)
-		for !db.Migrator().HasTable(&models.User{}) {
-			if waited >= maxWait {
-				log.Fatalf("users table does not exist after waiting %v", maxWait)
-			}
-			log.Println("Waiting for users table to be created...")
-			time.Sleep(interval)
-			waited += interval
-		}
-		log.Println("Database migrations complete: users table exists")
 	} else {
 		log.Println("Skipping migrations as SKIP_MIGRATIONS is set")
 	}
+
+	// Verbose polling for the "users" table
+	maxWait := 30 * time.Second
+	interval := 2 * time.Second
+	waited := time.Duration(0)
+	for {
+		if db.Migrator().HasTable(&models.User{}) {
+			log.Println("users table detected.")
+			break
+		}
+		// Attempt to list current tables for debugging.
+		tables, err := db.Migrator().GetTables()
+		if err != nil {
+			log.Printf("Failed to retrieve table list: %v", err)
+		} else {
+			log.Printf("Current tables in database: %v", tables)
+		}
+		if waited >= maxWait {
+			log.Fatalf("users table does not exist after waiting %v", maxWait)
+		}
+		log.Printf("Waiting for users table to be created... waited %v", waited)
+		time.Sleep(interval)
+		waited += interval
+	}
+	log.Println("Database ready: users table exists")
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
@@ -75,7 +85,6 @@ func main() {
 	h := &handlers.Handlers{
 		User:   userHandler,
 		Recipe: recipeHandler,
-		// Add notifications handler when ready.
 	}
 
 	// Initialize the router using the composite handlers.
