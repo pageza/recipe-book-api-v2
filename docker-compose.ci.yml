@@ -93,5 +93,19 @@ services:
       DB_PASSWORD: somepassword
       GRPC_SERVER_ADDR: grpc-server:50051
     command: ["go", "test", "./...", "-v"]
+
+  newman:
+      image: postman/newman:latest
+      # Let Docker Compose know it must wait for the API (and possibly gRPC):
+      depends_on:
+        - api
+      # Mount your entire repo, so newman can access /collections
+      volumes:
+        - .:/etc/newman
+      command: >
+        newman run /etc/newman/collections/user_endpoints/UserEndpoints.postman_collection.json
+        --environment /etc/newman/collections/TestEnvironment.postman_environment.json
+        --delay-request 100
+        --reporters cli
 volumes:
   db_data:
