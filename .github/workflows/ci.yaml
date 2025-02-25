@@ -47,6 +47,10 @@ jobs:
           # This calls your newman service which references your Postman collection
           docker compose -f docker-compose.ci.yml run --rm newman
 
+      - name: Dump container logs
+        run: |
+          docker compose -f docker-compose.ci.yml logs
+
       - name: Cleanup
         run: |
           docker compose -f docker-compose.ci.yml down
