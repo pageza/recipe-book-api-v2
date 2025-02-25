@@ -21,6 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.migrate
+    # runs only once in CI (in your workflow)
     depends_on:
       - db
     environment:
@@ -37,8 +38,8 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
+      # Remove 'migrate' so it won't re-run migrations:
       - db
-      - migrate
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -47,7 +48,6 @@ services:
       DB_PASSWORD: somepassword
     ports:
       - "8080:8080"
-    entrypoint: []
     command: ["go", "run", "cmd/api-gateway/main.go"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:8080/healthcheck || exit 1"]
@@ -58,8 +58,8 @@ services:
   grpc-server:
     build: .
     depends_on:
+      # Remove 'migrate' here too
       - db
-      - migrate
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -85,8 +85,8 @@ services:
       context: .
       dockerfile: Dockerfile.test
     depends_on:
+      # For the test service, remove 'migrate' so it won't start it again
       - db
-      - migrate
       - grpc-server
     environment:
       DB_HOST: db

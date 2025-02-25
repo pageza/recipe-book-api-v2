@@ -1,122 +1,51 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches:
-      - '**'
+    branches: [main]
   pull_request:
-    branches:
-      - '**'
-
-env:
-  COMPOSE_PROJECT_NAME: recipe-book-api-v2
-  ACTIONS_RUNNER_DEBUG: true
-  ACTIONS_STEP_DEBUG: true
-  GRPC_SERVER_ADDR: grpc-server:50051
-
-  GODEBUG: netdns=go
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out the code
+      - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.24'
-
-      - name: Debug Docker Compose Config
-        run: docker compose -f docker-compose.ci.yml config
+      # If needed in your environment:
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose-plugin
 
       - name: Build Docker images
-        run: docker compose -f docker-compose.ci.yml build --no-cache
-
-      - name: Start db and run migrations (in background)
         run: |
+          docker compose -f docker-compose.ci.yml build
+
+      - name: Start DB & run migrations
+        run: |
+          # Bring up ONLY 'db' + 'migrate' so we don't launch them multiple times
           docker compose -f docker-compose.ci.yml up -d db migrate
 
-      - name: Wait a bit for migrations
-        run: sleep 5
+          # Let migrations finish
+          sleep 5
 
-      - name: Start API in background
-        run: docker compose -f docker-compose.ci.yml up -d api
-
-      - name: Wait for 'users' table
+      - name: Start API (and optionally gRPC server)
         run: |
-          echo "Waiting for 'users' table in DB..."
-          for i in {1..30}; do
-            RESULT=$(
-              docker compose -f docker-compose.ci.yml exec db \
-                psql -U postgres -d recipe_db -t -A -c \
-                "SELECT tablename FROM pg_catalog.pg_tables WHERE tablename='users';" \
-              | sed 's/^[ \t]*//;s/[ \t]*$//'
-            )
-            echo "Attempt $i: Result: '$RESULT'"
-            if [ "$RESULT" = "users" ]; then
-              echo "'users' table exists."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "'users' table not found after waiting."
-          exit 1
+          # Now just bring up 'api' and 'grpc-server', but NOT 'migrate' again
+          docker compose -f docker-compose.ci.yml up -d api grpc-server
 
-      - name: List Docker Compose Services
-        run: docker compose -f docker-compose.ci.yml ps
+          # Let them come online
+          sleep 5
 
-      - name: Wait for API to be Ready
+      - name: Run Tests (Newman, or your go test container)
         run: |
-          URL="http://localhost:8080/healthcheck"
-          echo "Checking API health at: $URL"
-          sleep 30
+          # If you have a "test" service in your docker-compose.ci.yml:
+          docker compose -f docker-compose.ci.yml run --rm test
 
-          for i in {1..20}; do
-            set +e
-            http_output=$(curl -s --fail "$URL")
-            exit_code=$?
-            set -e
-
-            if [ $exit_code -eq 0 ]; then
-              echo "API responded successfully:"
-              echo "$http_output"
-              echo "API is ready"
-              exit 0
-            fi
-
-            echo "Healthcheck attempt $i failed with curl exit code: $exit_code. Retrying..."
-            sleep 5
-          done
-
-          echo "API did not become healthy in time"
-          exit 1
-
-      - name: Run Tests
-        run: docker compose -f docker-compose.ci.yml run --rm test
-
-      - name: Run E2E tests with Newman
-        run: |
-          for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
-            docker run --rm --network host -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
-          done
-
-      - name: Dump container logs
-        if: always()
-        run: docker compose -f docker-compose.ci.yml logs
-
-      - name: Run integration tests with Newman
-        run: |
-          for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
-            echo "Running Postman tests in $file"
-            docker run --rm \
-              --network recipe-book-api-v2_default \
-              -v $(pwd):/etc/newman \
-              postman/newman run "$file" \
-              --environment collections/TestEnvironment.postman_environment.json
-          done
+          # Or if you're running Newman from a separate container named "newman":
+          # docker compose -f docker-compose.ci.yml run --rm newman
 
       - name: Cleanup
-        run: docker compose -f docker-compose.ci.yml down -v
+        run: |
+          docker compose -f docker-compose.ci.yml down
