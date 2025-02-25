@@ -8,6 +8,11 @@ services:
       POSTGRES_DB: recipe_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: somepassword
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
     # No "ports" here. We rely on internal Docker networking.
     # ports:
     #   - "5432:5432"
@@ -24,7 +29,8 @@ services:
       DB_NAME: recipe_db
       DB_USER: postgres
       DB_PASSWORD: somepassword
-    # Removed "command: ['./migrate.sh']" so the Dockerfile's default CMD is used
+      DROP_TABLES: "true"
+    command: ["go", "run", "cmd/migrate/main.go"]
 
   api:
     build:

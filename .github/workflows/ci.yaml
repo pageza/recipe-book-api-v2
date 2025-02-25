@@ -35,19 +35,15 @@ jobs:
       - name: Build Docker images
         run: docker compose -f docker-compose.ci.yml build --no-cache
 
-      - name: Start Docker Compose (detached)
-        run: docker compose -f docker-compose.ci.yml up -d db migrate
-
-      - name: Check DB logs to ensure migrations are complete
-        run: docker compose -f docker-compose.ci.yml logs migrate
-
-      - name: Start API and gRPC Services
-        run: docker compose -f docker-compose.ci.yml up -d api grpc-server
-
-      - name: Download wait-for-it.sh script
+      - name: Start db and run migrations (in background)
         run: |
-          curl -o wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
-          chmod +x wait-for-it.sh
+          docker compose -f docker-compose.ci.yml up -d db migrate
+
+      - name: Wait a bit for migrations
+        run: sleep 5
+
+      - name: Start API in background
+        run: docker compose -f docker-compose.ci.yml up -d api
 
       - name: Wait for 'users' table
         run: |
@@ -122,6 +118,5 @@ jobs:
               --environment collections/TestEnvironment.postman_environment.json
           done
 
-      - name: Stop (and clean) Docker Compose
-        if: always()
+      - name: Cleanup
         run: docker compose -f docker-compose.ci.yml down -v
