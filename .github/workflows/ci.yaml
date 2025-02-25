@@ -55,8 +55,9 @@ jobs:
           for i in {1..30}; do
             RESULT=$(
               docker compose -f docker-compose.ci.yml exec db \
-                psql -U postgres -w -d recipe_db -t \
-                  -c "SELECT to_regclass('public.users');"
+                psql -U postgres -d recipe_db -t -A -c \
+                "SELECT tablename FROM pg_catalog.pg_tables WHERE tablename='users';" \
+              | sed 's/^[ \t]*//;s/[ \t]*$//'
             )
             echo "Attempt $i: Result: '$RESULT'"
             if [ "$RESULT" = "users" ]; then
