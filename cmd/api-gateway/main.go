@@ -8,21 +8,18 @@ package main
 
 import (
 	"log"
-	"os"
-	"time"
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
-	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 	"github.com/pageza/recipe-book-api-v2/internal/routes"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
 )
 
 func main() {
-	// Load configuration and log it.
+	// Load configuration.
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
@@ -36,61 +33,8 @@ func main() {
 	}
 	log.Println("Database connection established")
 
-	// Run migrations unless we're instructed to skip them.
-	if os.Getenv("SKIP_MIGRATIONS") != "true" {
-		err = db.AutoMigrate(&models.User{}, &models.Recipe{})
-		if err != nil {
-			log.Fatalf("failed to run migrations: %v", err)
-		}
-		log.Println("Database migrations initiated")
-	} else {
-		log.Println("Skipping migrations as SKIP_MIGRATIONS is set")
-	}
-
-	// Verbose polling for the "users" table
-	maxWait := 30 * time.Second
-	interval := 2 * time.Second
-	waited := time.Duration(0)
-	for {
-		if db.Migrator().HasTable(&models.User{}) {
-			log.Println("users table detected.")
-			break
-		}
-		tables, err := db.Migrator().GetTables()
-		if err != nil {
-			log.Printf("Failed to retrieve table list: %v", err)
-		} else {
-			log.Printf("Current tables in database: %v", tables)
-		}
-		if waited >= maxWait {
-			log.Fatalf("users table does not exist after waiting %v", maxWait)
-		}
-		log.Printf("Waiting for users table to be created... waited %v", waited)
-		time.Sleep(interval)
-		waited += interval
-	}
-	log.Println("Database ready: users table exists")
-
-	// Force a reconnection: close the existing connection and re-open it.
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("failed to retrieve underlying sql.DB: %v", err)
-	}
-	err = sqlDB.Close()
-	if err != nil {
-		log.Fatalf("failed to close the stale connection: %v", err)
-	}
-	log.Println("Stale DB connection closed. Reconnecting...")
-	// Reconnect to the database with the same config.
-	db, err = config.ConnectDatabase(cfg)
-	if err != nil {
-		log.Fatalf("failed to reconnect to database: %v", err)
-	}
-	// (Optionally, if needed, run a lightweight schema check.)
-	if !db.Migrator().HasTable(&models.User{}) {
-		log.Fatalf("reconnected DB does not see users table")
-	}
-	log.Println("New DB connection established and confirmed schema.")
+	// Skip migrations in the API container.
+	log.Println("Skipping migrations in API container. Assuming migration container has applied schema.")
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
@@ -101,13 +45,12 @@ func main() {
 	recipeService := service.NewRecipeService(recipeRepo)
 	recipeHandler := recipes.NewRecipeHandler(recipeService)
 
-	// Combine all handlers into a composite struct.
 	h := &handlers.Handlers{
 		User:   userHandler,
 		Recipe: recipeHandler,
 	}
 
-	// Initialize the router using the composite handlers.
+	// Initialize the router.
 	r := routes.NewRouter(cfg, h)
 	log.Println("Router initialized, ready to start server")
 
