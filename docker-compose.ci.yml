@@ -8,8 +8,8 @@ services:
       POSTGRES_DB: recipe_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: somepassword
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432"
 
   migrate:
     build:
