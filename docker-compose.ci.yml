@@ -1,24 +1,5 @@
-version: "3.9"
+# docker-compose.ci.yml
 services:
-  postgres:
-    image: postgres:14
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: recipe_db
-    networks:
-      - backend
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d recipe_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   migrate:
     build:
       context: .
@@ -26,61 +7,50 @@ services:
     command: ["go", "run", "cmd/migrate/main.go"]
     environment:
       - PORT=8080
-      - DB_HOST=postgres
+      - DB_HOST=localhost
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
-    networks:
-      - backend
-    depends_on:
-      - postgres
-    restart: "no"
-
+    network_mode: host
+    # Note: This container is a one-off job. Its exit code determines success.
+    
   api:
     build: .
     entrypoint: []
     command: ["go", "run", "cmd/api-gateway/main.go"]
-    networks:
-      - backend
-    ports:
-      - "8080:8080"
     environment:
       - PORT=8080
-      - DB_HOST=postgres
+      - DB_HOST=localhost
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
+      - SKIP_MIGRATIONS=true
+    network_mode: host
     depends_on:
-      - postgres
       - migrate
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   grpc-server:
     build: .
     command: ["go", "run", "cmd/grpc-server/main.go"]
-    networks:
-      - backend
-    ports:
-      - "50051:50051"
-      - "50052:50052"
-      - "50053:50053"
     environment:
-      - DB_HOST=postgres
+      - DB_HOST=localhost
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
-    depends_on:
-      - postgres
-      - migrate
-
-networks:
-  backend:
-    external: true
-
-volumes:
-  pgdata:
+    network_mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
