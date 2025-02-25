@@ -1,9 +1,8 @@
 name: CI Pipeline
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  push:      # runs whenever you push any branch
+  pull_request:   # runs on all pull requests
 
 jobs:
   build-and-test:
