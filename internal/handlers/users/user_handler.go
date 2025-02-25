@@ -122,13 +122,21 @@ func (h *UserHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
+// Profile returns the profile of the authenticated user with additional information.
 func (h *UserHandler) Profile(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	// Get the extended claims from context.
+	value, exists := c.Get("userClaims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
 		return
 	}
-	user, err := h.service.GetProfile(userID.(string))
+	claims, ok := value.(*utils.JWTClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
+		return
+	}
+
+	user, err := h.service.GetProfile(claims.UserID)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
@@ -137,7 +145,18 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		}
 		return
 	}
-	c.JSON(http.StatusOK, user)
+
+	// Return a structured JSON response, including extended claims.
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"user": map[string]interface{}{
+			"id":          user.ID,
+			"username":    user.Username,
+			"email":       user.Email,
+			"role":        claims.Role,
+			"permissions": claims.Permissions,
+		},
+	})
 }
 
 // RequestPasswordReset handles generating a password reset token for a user.

@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.8.3
 	golang.org/x/crypto v0.33.0
+	golang.org/x/time v0.10.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.35.2
 	gorm.io/driver/postgres v1.5.11
