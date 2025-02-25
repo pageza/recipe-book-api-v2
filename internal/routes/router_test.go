@@ -40,6 +40,17 @@ func (d *dummyService) GetProfile(userID string) (*models.User, error) {
 	}, nil
 }
 
+// New stub implementations to satisfy the interface:
+func (d *dummyService) UpdateUser(user *models.User) error {
+	// Simulate a successful update.
+	return nil
+}
+
+func (d *dummyService) DeleteUser(userID string) error {
+	// Simulate a successful deletion.
+	return nil
+}
+
 // newDummyHandlers returns a composite handlers.Handlers with a real user handler
 // constructed using the dummyService.
 func newDummyHandlers() *handlers.Handlers {
