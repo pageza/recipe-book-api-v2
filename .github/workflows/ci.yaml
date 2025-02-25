@@ -54,13 +54,9 @@ jobs:
           echo "Waiting for 'users' table in DB..."
           for i in {1..30}; do
             RESULT=$(
-              docker run --rm \
-                --network recipe-book-api-v2_default \
-                -e PGPASSWORD=somepassword \
-                postgres:14 \
-                psql -h db -U postgres -w -d recipe_db -t \
-                  -c "SELECT to_regclass('public.users');" \
-              | tr -d '[:space:]'
+              docker compose -f docker-compose.ci.yml exec db \
+                psql -U postgres -w -d recipe_db -t \
+                  -c "SELECT to_regclass('public.users');"
             )
             echo "Attempt $i: Result: '$RESULT'"
             if [ "$RESULT" = "users" ]; then
