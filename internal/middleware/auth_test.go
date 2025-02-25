@@ -28,10 +28,14 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	// Invoke JWTAuth middleware.
 	middleware.JWTAuth(secret)(c)
 
-	// Check that userID was set in the context.
-	userID, exists := c.Get("userID")
-	assert.True(t, exists, "Expected userID to be set in context")
-	assert.Equal(t, "test-user-id", userID)
+	// Updated expectation: our middleware stores the entire claims under "userClaims".
+	claimsRaw, exists := c.Get("userClaims")
+	assert.True(t, exists, "Expected userClaims to be set in context")
+
+	// Replace ExtendedJWTClaims with your actual claims type name.
+	claims, ok := claimsRaw.(*utils.JWTClaims)
+	assert.True(t, ok, "Expected userClaims to be of type ExtendedJWTClaims")
+	assert.Equal(t, "test-user-id", claims.UserID)
 }
 
 func TestJWTAuthMiddleware_MissingHeader(t *testing.T) {

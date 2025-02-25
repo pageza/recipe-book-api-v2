@@ -123,6 +123,8 @@ func (h *UserHandler) Login(c *gin.Context) {
 }
 
 // Profile returns the profile of the authenticated user with additional information.
+// Profile returns the profile of the authenticated user, embedding the extended
+// JWT claims in the JSON response under the "userClaims" key.
 func (h *UserHandler) Profile(c *gin.Context) {
 	// Get the extended claims from context.
 	value, exists := c.Get("userClaims")
@@ -146,10 +148,11 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		return
 	}
 
-	// Return a structured JSON response, including extended claims.
+	// Return a structured JSON response, including the entire userClaims.
+	// This format is safe for frontend consumption.
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
-		"user": map[string]interface{}{
+		"userClaims": map[string]interface{}{
 			"id":          user.ID,
 			"username":    user.Username,
 			"email":       user.Email,
