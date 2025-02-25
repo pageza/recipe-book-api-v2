@@ -3,6 +3,7 @@ package users_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,57 +11,85 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
+	"github.com/pageza/recipe-book-api-v2/internal/service"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-// dummyUserService is a dummy implementation of the service.UserService interface
-// for testing CRUD endpoints.
-type dummyUserService struct{}
+// dummyUserService is an in-memory implementation of the service.UserService
+// interface for tests.
+type dummyUserService struct {
+	users map[string]*models.User
+}
+
+// newDummyUserService initializes the dummy service and pre-populates it with a test user.
+func newDummyUserService() *dummyUserService {
+	users := make(map[string]*models.User)
+	// Prepopulate with a test user.
+	users["dummy-id"] = &models.User{
+		ID:          "dummy-id",
+		Username:    "dummyuser",
+		Email:       "dummy@example.com",
+		Preferences: "{}",
+	}
+	return &dummyUserService{users: users}
+}
 
 func (d *dummyUserService) Register(user *models.User) error {
+	if _, exists := d.users[user.ID]; exists {
+		return fmt.Errorf("user already exists")
+	}
+	d.users[user.ID] = user
 	return nil
 }
 
 func (d *dummyUserService) Login(email, password string) (*models.User, error) {
-	return &models.User{
-		ID:       "dummy-id",
-		Username: "dummyuser",
-		Email:    email,
-	}, nil
+	for _, user := range d.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return nil, service.ErrUserNotFound
 }
 
 func (d *dummyUserService) GetProfile(userID string) (*models.User, error) {
-	return &models.User{
-		ID:       userID,
-		Username: "dummyuser",
-		Email:    "dummy@example.com",
-	}, nil
+	if user, exists := d.users[userID]; exists {
+		return user, nil
+	}
+	return nil, service.ErrUserNotFound
 }
 
 func (d *dummyUserService) UpdateUser(user *models.User) error {
-	// Simulate a successful update.
+	if _, exists := d.users[user.ID]; !exists {
+		return fmt.Errorf("user not found")
+	}
+	d.users[user.ID] = user
 	return nil
 }
 
 func (d *dummyUserService) DeleteUser(userID string) error {
-	// Simulate a successful deletion.
+	if _, exists := d.users[userID]; !exists {
+		return fmt.Errorf("user not found")
+	}
+	// Simulate deletion by removing the user from the in-memory map.
+	delete(d.users, userID)
 	return nil
 }
 
 func (d *dummyUserService) GetUserByEmail(email string) (*models.User, error) {
-	return &models.User{
-		ID:       "dummy-id",
-		Username: "dummyuser",
-		Email:    email,
-	}, nil
+	for _, user := range d.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return nil, service.ErrUserNotFound
 }
 
 // TestUpdateUserEndpoint tests the PUT /user endpoint.
 func TestUpdateUserEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	secret := "testsecret"
-	dummySvc := &dummyUserService{}
+	dummySvc := newDummyUserService()
 	userHandler := users.NewUserHandler(dummySvc, secret)
 
 	router := gin.Default()
@@ -95,7 +124,7 @@ func TestUpdateUserEndpoint(t *testing.T) {
 func TestDeleteUserEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	secret := "testsecret"
-	dummySvc := &dummyUserService{}
+	dummySvc := newDummyUserService()
 	userHandler := users.NewUserHandler(dummySvc, secret)
 
 	router := gin.Default()
