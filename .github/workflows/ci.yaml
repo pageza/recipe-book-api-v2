@@ -34,8 +34,11 @@ jobs:
       - name: Build Docker images
         run: docker compose -f docker-compose.ci.yml build --no-cache
 
-      - name: Run Database Migrations
-        run: docker compose -f docker-compose.ci.yml run migrate
+      - name: Start Docker Compose (detached)
+        run: docker compose -f docker-compose.ci.yml up -d db migrate
+
+      - name: Check DB logs to ensure migrations are complete
+        run: docker compose -f docker-compose.ci.yml logs migrate
 
       - name: Start API and gRPC Services
         run: docker compose -f docker-compose.ci.yml up -d api grpc-server
@@ -97,11 +100,8 @@ jobs:
           echo "API did not become healthy in time"
           exit 1
 
-      - name: Run Go tests
-        env:
-          DB_HOST: db
-          GODEBUG: netdns=go
-        run: go test -v ./...
+      - name: Run Tests
+        run: docker compose -f docker-compose.ci.yml run --rm test
 
       - name: Run E2E tests with Newman
         run: |
@@ -124,6 +124,6 @@ jobs:
               --environment collections/TestEnvironment.postman_environment.json
           done
 
-      - name: Tear Down Docker Compose Services
+      - name: Stop (and clean) Docker Compose
         if: always()
         run: docker compose -f docker-compose.ci.yml down -v
