@@ -159,6 +159,33 @@ func (h *UserHandler) Profile(c *gin.Context) {
 	})
 }
 
+// Update handles updating a user's information.
+func (h *UserHandler) Update(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateUser(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user updated"})
+}
+
+// Delete handles deleting a user.
+func (h *UserHandler) Delete(c *gin.Context) {
+	userID := c.Param("id")
+	if err := h.service.DeleteUser(userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
+}
+
 // RequestPasswordReset handles generating a password reset token for a user.
 func (h *UserHandler) RequestPasswordReset(c *gin.Context) {
 	var req struct {
