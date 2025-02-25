@@ -39,7 +39,7 @@ func LoadConfig() (*Config, error) {
 
 func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
 	// Ensure that all connections use the same public schema.
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC search_path=public",
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC options='-c search_path=public'",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
