@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
-	"github.com/pageza/recipe-book-api-v2/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,68 +18,82 @@ import (
 type errorUserService struct{}
 
 func (e *errorUserService) Register(user *models.User) error {
-	// Simulate validation error if email is missing.
 	if user.Email == "" {
 		return errors.New("email is required")
 	}
-	// Otherwise, simulate success.
 	return nil
 }
 
 func (e *errorUserService) Login(email, password string) (*models.User, error) {
-	// Simulate invalid credentials error using the sentinel error.
-	return nil, service.ErrInvalidCredentials
+	return nil, errors.New("invalid credentials")
 }
 
 func (e *errorUserService) GetProfile(userID string) (*models.User, error) {
-	// Simulate "user not found" error using the sentinel error.
-	return nil, service.ErrUserNotFound
+	return nil, errors.New("user not found")
+}
+
+// Added stub for UpdateUser to satisfy the interface.
+func (e *errorUserService) UpdateUser(user *models.User) error {
+	return errors.New("update error")
+}
+
+// Added stub for DeleteUser to satisfy the interface.
+func (e *errorUserService) DeleteUser(userID string) error {
+	return errors.New("delete error")
 }
 
 // duplicateUserService simulates a duplicate registration scenario.
-type duplicateUserService struct {
-	registered bool
-}
+type duplicateUserService struct{}
 
 func (d *duplicateUserService) Register(user *models.User) error {
-	if d.registered {
-		// Return the sentinel error for duplicate registration.
-		return service.ErrUserAlreadyExists
-	}
-	d.registered = true
-	return nil
+	return errors.New("user already exists")
 }
 
 func (d *duplicateUserService) Login(email, password string) (*models.User, error) {
-	return nil, nil
+	return nil, errors.New("duplicate user login error")
 }
 
 func (d *duplicateUserService) GetProfile(userID string) (*models.User, error) {
-	return nil, nil
+	return nil, errors.New("duplicate user profile error")
+}
+
+func (d *duplicateUserService) UpdateUser(user *models.User) error {
+	return errors.New("duplicate update error")
+}
+
+func (d *duplicateUserService) DeleteUser(userID string) error {
+	return errors.New("duplicate delete error")
 }
 
 // validUserService simulates a service that returns valid user data.
 type validUserService struct{}
 
-func (v *validUserService) Register(user *models.User) error { return nil }
+func (v *validUserService) Register(user *models.User) error {
+	return nil
+}
 
 func (v *validUserService) Login(email, password string) (*models.User, error) {
 	return &models.User{
-		ID:           "valid-id",
-		Email:        email,
-		Username:     "validuser",
-		PasswordHash: "hashed", // dummy value
-		Preferences:  "{}",
+		ID:       "valid-user-id",
+		Username: "validuser",
+		Email:    email,
 	}, nil
 }
 
 func (v *validUserService) GetProfile(userID string) (*models.User, error) {
 	return &models.User{
-		ID:          userID,
-		Email:       "valid@example.com",
-		Username:    "validuser",
-		Preferences: "{}",
+		ID:       userID,
+		Username: "validuser",
+		Email:    "validuser@example.com",
 	}, nil
+}
+
+func (v *validUserService) UpdateUser(user *models.User) error {
+	return nil
+}
+
+func (v *validUserService) DeleteUser(userID string) error {
+	return nil
 }
 
 func TestRegisterValidation_MissingEmail(t *testing.T) {
