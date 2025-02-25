@@ -6,12 +6,15 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
+// Config holds app configuration
 type Config struct {
 	DatabaseURL string
 	Port        string
@@ -38,14 +41,35 @@ func LoadConfig() (*Config, error) {
 }
 
 func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
-	// Force search_path=public via the options parameter in the DSN.
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC options='-c search_path=public'",
-		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
+	// Print out the config to confirm values at runtime.
+	log.Printf("Connecting to DB with config: %+v\n", cfg)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Building the DSN from config fields. If you want to use DatabaseURL directly, swap this out.
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC options='-c search_path=public'",
+		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort,
+	)
+	log.Printf("Using DSN: %s\n", dsn)
+
+	// Very verbose GORM logging
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			LogLevel: logger.Info, // Log all SQL queries at the Info level
+			Colorful: false,       // If logs get messy in CI, disabling color can help
+		},
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: newLogger,
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error connecting to DB: %w", err)
 	}
+
+	// Returning the DB without migrations here. If your migrations happen elsewhere, that's fine.
+	// Or call db.AutoMigrate(...) or run your migration logic if desired.
+	log.Println("Connected to the database successfully!")
 	return db, nil
 }
 
