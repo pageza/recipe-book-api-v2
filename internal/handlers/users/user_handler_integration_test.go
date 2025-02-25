@@ -39,11 +39,11 @@ func TestMain(m *testing.M) {
 
 	// Setup gRPC client connection for integration tests.
 	// This might use an environment variable or a default.
-	addr := os.Getenv("GRPC_DIAL_ADDRESS")
-	if addr == "" {
-		addr = "grpc-server:50051" // adjust if needed
+	host := os.Getenv("GRPC_SERVER_HOST")
+	if host == "" {
+		host = "grpc-server:50051" // adjust if needed
 	}
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to connect to gRPC server: %v", err)
 	}
@@ -67,12 +67,12 @@ func setupTestClient() proto.UserServiceClient {
 	// Allow time for the server to be ready.
 	time.Sleep(2 * time.Second)
 
-	addr := os.Getenv("GRPC_DIAL_ADDRESS")
-	if addr == "" {
-		addr = "grpc-server:50051"
+	host := os.Getenv("GRPC_SERVER_HOST")
+	if host == "" {
+		host = "grpc-server:50051"
 	}
 
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
 		panic("Failed to connect to gRPC server: " + err.Error())
 	}

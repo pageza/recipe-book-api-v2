@@ -60,10 +60,13 @@ services:
       DB_NAME: recipe_db
       DB_USER: postgres
       DB_PASSWORD: somepassword
+    # Remove network_mode: host
+    # Optionally expose port if you need to talk externally:
+    ports:
+      - "50051:50051"
     command: ["go", "run", "cmd/grpc-server/main.go"]
-    network_mode: host
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      test: ["CMD-SHELL", "nc -z grpc-server 50051 || exit 1"] 
       interval: 10s
       timeout: 5s
       retries: 5
@@ -78,10 +81,12 @@ services:
     depends_on:
       - db
       - migrate
+      - grpc-server
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: recipe_db
       DB_USER: postgres
       DB_PASSWORD: somepassword
+      GRPC_SERVER_ADDR: grpc-server:50051
     command: ["go", "test", "./...", "-v"]

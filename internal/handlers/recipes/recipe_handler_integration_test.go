@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository" // make sure repository package is imported
@@ -60,33 +59,45 @@ func TestMain(m *testing.M) {
 }
 
 func TestIntegration_CreateAndGetRecipe(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+	// Read the gRPC server address from the environment, just like in user_handler_integration_test.go.
+	grpcServerAddr := os.Getenv("GRPC_SERVER_ADDR")
+	if grpcServerAddr == "" {
+		grpcServerAddr = "grpc-server:50051"
+	}
 
-	// Create a new recipe via gRPC.
-	createReq := &proto.CreateRecipeRequest{
+	conn, err := grpc.Dial(grpcServerAddr, grpc.WithInsecure())
+	assert.NoError(t, err, "Expected to connect to gRPC server")
+	defer conn.Close()
+
+	client := proto.NewRecipeServiceClient(conn)
+
+	// Example: create a new recipe.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := client.CreateRecipe(ctx, &proto.CreateRecipeRequest{
 		Title:       "Healthy Chicken Salad",
 		Ingredients: `{"items": ["chicken", "lettuce", "tomato", "cucumber"]}`,
 		Steps:       `{"steps": ["Grill chicken", "Chop veggies", "Mix together"]}`,
 		// Note: our new Recipe model has additional fields (NutritionalInfo, AllergyDisclaimer, Appliances)
 		// but the current proto definition doesn't include these.
 		// We assume that later you'll update the proto, so for now these are omitted.
-	}
-	createResp, err := grpcClient.CreateRecipe(context.Background(), createReq)
+	})
 	assert.NoError(t, err, "Expected no error during recipe creation")
-	assert.NotEmpty(t, createResp.RecipeId, "Expected a non-empty recipeId")
+	assert.NotEmpty(t, resp.RecipeId, "Expected a non-empty recipeId")
 
 	// Wait briefly for the recipe to be available.
 	time.Sleep(1 * time.Second)
 
 	// Retrieve the recipe via gRPC.
 	getReq := &proto.GetRecipeRequest{
-		RecipeId: createResp.RecipeId,
+		RecipeId: resp.RecipeId,
 	}
-	getResp, err := grpcClient.GetRecipe(context.Background(), getReq)
+	getResp, err := client.GetRecipe(ctx, getReq)
 	assert.NoError(t, err, "Expected no error during recipe retrieval")
-	assert.Equal(t, createReq.Title, getResp.Title, "Recipe title should match")
-	assert.Equal(t, createReq.Ingredients, getResp.Ingredients, "Ingredients should match")
-	assert.Equal(t, createReq.Steps, getResp.Steps, "Steps should match")
+	assert.Equal(t, "Healthy Chicken Salad", getResp.Title, "Recipe title should match")
+	assert.Equal(t, `{"items": ["chicken", "lettuce", "tomato", "cucumber"]}`, getResp.Ingredients, "Ingredients should match")
+	assert.Equal(t, `{"steps": ["Grill chicken", "Chop veggies", "Mix together"]}`, getResp.Steps, "Steps should match")
 }
 
 func TestIntegration_ListRecipes(t *testing.T) {

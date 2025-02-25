@@ -12,7 +12,8 @@ env:
   COMPOSE_PROJECT_NAME: recipe-book-api-v2
   ACTIONS_RUNNER_DEBUG: true
   ACTIONS_STEP_DEBUG: true
-  GRPC_DIAL_ADDRESS: localhost:50051
+  GRPC_SERVER_ADDR: grpc-server:50051
+
   GODEBUG: netdns=go
 
 jobs:
