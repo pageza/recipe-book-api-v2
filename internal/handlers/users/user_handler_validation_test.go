@@ -42,6 +42,10 @@ func (e *errorUserService) DeleteUser(userID string) error {
 	return errors.New("delete error")
 }
 
+func (e *errorUserService) GetUserByEmail(email string) (*models.User, error) {
+	return nil, errors.New("get user error: user not found")
+}
+
 // duplicateUserService simulates a duplicate registration scenario.
 type duplicateUserService struct{}
 
@@ -63,6 +67,10 @@ func (d *duplicateUserService) UpdateUser(user *models.User) error {
 
 func (d *duplicateUserService) DeleteUser(userID string) error {
 	return errors.New("duplicate delete error")
+}
+
+func (d *duplicateUserService) GetUserByEmail(email string) (*models.User, error) {
+	return nil, errors.New("duplicate get user error")
 }
 
 // validUserService simulates a service that returns valid user data.
@@ -96,6 +104,13 @@ func (v *validUserService) DeleteUser(userID string) error {
 	return nil
 }
 
+func (v *validUserService) GetUserByEmail(email string) (*models.User, error) {
+	return &models.User{
+		ID:       "valid-id",
+		Username: "validuser",
+		Email:    email,
+	}, nil
+}
 func TestRegisterValidation_MissingEmail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &errorUserService{}

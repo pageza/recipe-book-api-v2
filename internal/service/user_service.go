@@ -28,6 +28,7 @@ type UserService interface {
 	Register(user *models.User) error
 	Login(email, password string) (*models.User, error)
 	GetProfile(userID string) (*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
 	UpdateUser(user *models.User) error
 	DeleteUser(userID string) error
 }
@@ -86,6 +87,17 @@ func (s *userService) GetProfile(userID string) (*models.User, error) {
 		return nil, ErrUserNotFound
 	}
 	log.Printf("GetProfile: retrieved profile for user ID: %s", userID)
+	return user, nil
+}
+
+// GetUserByEmail retrieves a user's profile by email. If the user is not found, it returns ErrUserNotFound.
+func (s *userService) GetUserByEmail(email string) (*models.User, error) {
+	user, err := s.repo.GetUserByEmail(email)
+	if err != nil {
+		log.Printf("GetUserByEmail: user with email (%s) not found: %v", email, err)
+		return nil, ErrUserNotFound
+	}
+	log.Printf("GetUserByEmail: retrieved profile for user email: %s", email)
 	return user, nil
 }
 
