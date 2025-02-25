@@ -56,7 +56,6 @@ func main() {
 			log.Println("users table detected.")
 			break
 		}
-		// Attempt to list current tables for debugging.
 		tables, err := db.Migrator().GetTables()
 		if err != nil {
 			log.Printf("Failed to retrieve table list: %v", err)
@@ -71,6 +70,27 @@ func main() {
 		waited += interval
 	}
 	log.Println("Database ready: users table exists")
+
+	// Force a reconnection: close the existing connection and re-open it.
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("failed to retrieve underlying sql.DB: %v", err)
+	}
+	err = sqlDB.Close()
+	if err != nil {
+		log.Fatalf("failed to close the stale connection: %v", err)
+	}
+	log.Println("Stale DB connection closed. Reconnecting...")
+	// Reconnect to the database with the same config.
+	db, err = config.ConnectDatabase(cfg)
+	if err != nil {
+		log.Fatalf("failed to reconnect to database: %v", err)
+	}
+	// (Optionally, if needed, run a lightweight schema check.)
+	if !db.Migrator().HasTable(&models.User{}) {
+		log.Fatalf("reconnected DB does not see users table")
+	}
+	log.Println("New DB connection established and confirmed schema.")
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
