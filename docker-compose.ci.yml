@@ -8,6 +8,7 @@ services:
       POSTGRES_DB: recipe_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: somepassword
+    # No ports mapped to avoid collisions on port 5432 in CI
     # ports:
     #   - "5432:5432"
 
@@ -23,9 +24,8 @@ services:
       DB_NAME: recipe_db
       DB_USER: postgres
       DB_PASSWORD: somepassword
-    command: ["./migrate.sh"]
-    # Note: This container is a one-off job. Its exit code determines success.
-    
+    # Removed "command: ['./migrate.sh']" so the Dockerfile's default CMD is used
+
   api:
     build: .
     depends_on:
