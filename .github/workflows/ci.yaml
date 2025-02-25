@@ -43,14 +43,17 @@ jobs:
           docker compose -f docker-compose.ci.yml run --rm test
 
       - name: Run Newman E2E tests
+        # If Newman fails with exit code 1, GitHub Actions normally stops. 
+        # We'll still let it fail the job, but we want logs no matter what.
         run: |
-          # This calls your newman service which references your Postman collection
           docker compose -f docker-compose.ci.yml run --rm newman
 
       - name: Dump container logs
+        if: always()     # <-- runs even if previous step fails
         run: |
           docker compose -f docker-compose.ci.yml logs
 
       - name: Cleanup
+        if: always()     # <-- also always runs
         run: |
           docker compose -f docker-compose.ci.yml down
