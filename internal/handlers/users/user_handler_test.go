@@ -55,6 +55,14 @@ func (d *dummyUserService) DeleteUser(userID string) error {
 	return nil
 }
 
+func (d *dummyUserService) GetUserByEmail(email string) (*models.User, error) {
+	// Return a dummy user based on email.
+	return &models.User{
+		ID:       "dummy-id",
+		Username: "dummyuser",
+		Email:    email,
+	}, nil
+}
 func TestRegisterAndLoginHandler(t *testing.T) {
 	// Set Gin to test mode.
 	gin.SetMode(gin.TestMode)
