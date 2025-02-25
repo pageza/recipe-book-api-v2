@@ -18,20 +18,7 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: recipe_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+
     steps:
       - name: Check out the code
         uses: actions/checkout@v3
@@ -58,11 +45,20 @@ jobs:
           curl -o wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
 
-      - name: Wait for DB Schema
+      - name: Wait for 'users' table
         run: |
           echo "Waiting for 'users' table in DB..."
+          # Docker Compose network name is typically <COMPOSE_PROJECT_NAME>_default = recipe-book-api-v2_default
           for i in {1..30}; do
-            RESULT=$(docker run --rm --network host -e PGPASSWORD=postgres postgres:14 psql -h 127.0.0.1 -U postgres -w -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
+            RESULT=$(
+              docker run --rm \
+                --network recipe-book-api-v2_default \
+                -e PGPASSWORD=postgres \
+                postgres:14 \
+                psql -h db -U postgres -w -d recipe_db -t \
+                  -c "SELECT to_regclass('public.users');" \
+              | tr -d '[:space:]'
+            )
             echo "Attempt $i: Result: '$RESULT'"
             if [ "$RESULT" = "users" ]; then
               echo "'users' table exists."
@@ -94,32 +90,10 @@ jobs:
           done
           echo "API did not become healthy in time"
           exit 1
-      - name: Wait for 'users' table
-        run: |
-          echo "Waiting for 'users' table in DB..."
-          # Use the Docker network recipe-book-api-v2_default (or your actual network name).
-          for i in {1..30}; do
-            RESULT=$(
-              docker run --rm \
-                --network recipe-book-api-v2_default \
-                -e PGPASSWORD=somepassword \
-                postgres:14 \
-                psql -h db -U postgres -w -d recipe_db -t \
-                  -c "SELECT to_regclass('public.users');" \
-              | tr -d '[:space:]'
-            )
-            echo "Attempt $i: Result: '$RESULT'"
-            if [ "$RESULT" = "users" ]; then
-              echo "'users' table exists."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "'users' table not found after waiting."
-          exit 1
+
       - name: Run Go tests
         env:
-          DB_HOST: localhost
+          DB_HOST: db
           GODEBUG: netdns=go
         run: go test -v ./...
 
