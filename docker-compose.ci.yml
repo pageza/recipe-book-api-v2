@@ -100,16 +100,10 @@ services:
       - api
     volumes:
       - .:/etc/newman
-    command: [
-      "newman",
-      "run",
-      "/etc/newman/collections/user_endpoints/UserEndpoints.postman_collection.json",
-      "--environment",
-      "/etc/newman/collections/TestEnvironment.postman_environment.json",
-      "--reporters",
-      "cli",
-      "--delay-request",
-      "100"
-    ]
+    command: >
+      newman run /etc/newman/collections/user_endpoints/UserEndpoints.postman_collection.json
+      --environment /etc/newman/collections/TestEnvironment.postman_environment.json
+      --reporters cli
+      --delay-request 100
 volumes:
   db_data:
