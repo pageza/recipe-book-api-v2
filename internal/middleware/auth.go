@@ -39,8 +39,8 @@ func JWTAuth(secret string) gin.HandlerFunc {
 
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Example debug logging for every request
-		fmt.Println("DEBUG: Logger - request method:", c.Request.Method, "path:", c.Request.URL.Path)
+		// Write log output to gin.DefaultWriter so tests can capture it.
+		fmt.Fprintln(gin.DefaultWriter, "DEBUG: Logger - request method:", c.Request.Method, "path:", c.Request.URL.Path)
 		c.Next()
 	}
 }

@@ -4,10 +4,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
-	"github.com/pageza/recipe-book-api-v2/pkg/utils"
-	"github.com/stretchr/testify/assert"
+	"github.com/pageza/recipe-book-api-v2/pkg/utils" // gRPC client import
 )
 
 // fakeUserRepository implements service.UserRepository for testing.
@@ -43,6 +45,7 @@ func (f *fakeUserRepository) GetUserByID(id string) (*models.User, error) {
 }
 
 func TestUserService_Register(t *testing.T) {
+	// Set up the fake repository
 	repo := &fakeUserRepository{}
 	svc := service.NewUserService(repo)
 
@@ -52,7 +55,7 @@ func TestUserService_Register(t *testing.T) {
 	assert.NoError(t, err)
 
 	user := &models.User{
-		ID:           "user-1",
+		ID:           uuid.New().String(), // Use UUID for unique ID
 		Username:     "testuser",
 		Email:        "testuser@example.com",
 		PasswordHash: hash,
@@ -69,6 +72,7 @@ func TestUserService_Register(t *testing.T) {
 }
 
 func TestUserService_Login(t *testing.T) {
+	// Set up the fake repository
 	repo := &fakeUserRepository{}
 	svc := service.NewUserService(repo)
 
@@ -77,13 +81,13 @@ func TestUserService_Login(t *testing.T) {
 	assert.NoError(t, err)
 
 	user := &models.User{
-		ID:           "user-1",
+		ID:           uuid.New().String(),
 		Username:     "testuser",
 		Email:        "testuser@example.com",
 		PasswordHash: hash,
 		Preferences:  "{\"diet\":\"vegan\"}",
 	}
-	// Pre-register the user.
+	// Pre-register the user in the fake repository.
 	err = repo.CreateUser(user)
 	assert.NoError(t, err)
 

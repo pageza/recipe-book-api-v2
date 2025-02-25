@@ -78,7 +78,52 @@
               "    pm.environment.set(\"registeredUserId\", jsonData.id);",
               "}"
             ]
-
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register Duplicate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"{{registeredUserId}}\",\n    \"email\": \"{{registeredEmail}}\",\n    \"password\": \"{{registeredPassword}}\",\n    \"preferences\": {}\n}"
+        },
+        "url": {
+          "raw": "{{apiUrl}}/register",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "register"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 409 for duplicate registration",
+              "pm.test(\"Status code is 409\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "// Validate error message indicates duplicate registration",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Error message indicates duplicate registration\", function () {",
+              "    pm.expect(jsonData.error).to.include(\"already exists\");",
+              "});"
+            ]
           }
         }
       ]
@@ -133,7 +178,164 @@
       ]
     },
     {
-      "name": "Get Profile",
+      "name": "Login Invalid Credentials",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{registeredEmail}}\",\n    \"password\": \"wrongpassword\"\n}"
+        },
+        "url": {
+          "raw": "{{apiUrl}}/login",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 401 for invalid credentials",
+              "pm.test(\"Status code is 401\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "// Parse response and validate error message",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Error message indicates invalid credentials\", function () {",
+              "    pm.expect(jsonData.error).to.include(\"invalid credentials\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register Malformed JSON",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{username: \"badjson\", email: \"badjson@example.com\""
+        },
+        "url": {
+          "raw": "{{apiUrl}}/register",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "register"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 400 for malformed JSON",
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login Malformed JSON",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{email: \"badjson@example.com\", password: \"badjson\""
+        },
+        "url": {
+          "raw": "{{apiUrl}}/login",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 400 for malformed JSON in login",
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Profile Unauthorized",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{apiUrl}}/profile",
+          "host": [
+            "{{apiUrl}}"
+          ],
+          "path": [
+            "profile"
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Validate status code is 401 for unauthorized access",
+              "pm.test(\"Status code is 401\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Profile Authorized",
       "request": {
         "method": "GET",
         "header": [
@@ -159,7 +361,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "// Validate status code is 200 for the profile endpoint",
+              "// Validate status code is 200 for authorized profile access",
               "pm.test(\"Status code is 200\", function () {",
               "    pm.response.to.have.status(200);",
               "});",

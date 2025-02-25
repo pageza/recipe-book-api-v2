@@ -1,153 +1,208 @@
 package users_test
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
+	"log"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
-	"github.com/pageza/recipe-book-api-v2/internal/middleware"
+	"github.com/google/uuid"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
-	"github.com/pageza/recipe-book-api-v2/internal/service"
+	"github.com/pageza/recipe-book-api-v2/proto/proto" // Generated gRPC client code
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
-// setupTestRouter configures an in-memory test DB, sets up the repository, service, handler,
-// and configures a Gin router with the /register, /login, and /profile endpoints.
-func setupTestRouter() *gin.Engine {
-	// Open an in-memory SQLite database.
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+var testDB = repository.DB(nil)
+var grpcClient proto.UserServiceClient
+
+func TestMain(m *testing.M) {
+	var err error
+	// Connect to your test database.
+	testDB, err = repository.ConnectTestDB()
 	if err != nil {
-		panic("failed to connect to in-memory sqlite")
+		log.Fatalf("failed to connect to test database: %v", err)
 	}
 
-	// AutoMigrate will create the users table.
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		panic(err)
+	// Run migrations for the user model (and any others you require).
+	err = testDB.AutoMigrate(&models.User{})
+	if err != nil {
+		log.Fatalf("failed to auto-migrate users table: %v", err)
 	}
 
-	repo := repository.NewUserRepository(db)
-	svc := service.NewUserService(repo)
-	handler := users.NewUserHandler(svc, "testsecret")
+	// Give the DB some time to be ready (if needed).
+	time.Sleep(1 * time.Second)
 
-	router := gin.Default()
-	// Register endpoints.
-	router.POST("/register", handler.Register)
-	router.POST("/login", handler.Login)
-	// Protect /profile using the JWT middleware.
-	router.GET("/profile", middleware.JWTAuth("testsecret"), handler.Profile)
-	return router
+	// Setup gRPC client connection for integration tests.
+	// This might use an environment variable or a default.
+	host := os.Getenv("GRPC_SERVER_HOST")
+	if host == "" {
+		host = "grpc-server:50051" // adjust if needed
+	}
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to connect to gRPC server: %v", err)
+	}
+	grpcClient = proto.NewUserServiceClient(conn)
+
+	// Run tests.
+	code := m.Run()
+
+	// // Clean up the test database (e.g., drop user table)
+	// err = testDB.Migrator().DropTable(&models.User{})
+	// if err != nil {
+	// 	log.Fatalf("failed to drop users table: %v", err)
+	// }
+
+	os.Exit(code)
+}
+
+// setupTestClient connects to the gRPC server using the address specified in the environment variable GRPC_DIAL_ADDRESS.
+// If not set, it defaults to "grpc-server:50051".
+func setupTestClient() proto.UserServiceClient {
+	// Allow time for the server to be ready.
+	time.Sleep(2 * time.Second)
+
+	host := os.Getenv("GRPC_SERVER_HOST")
+	if host == "" {
+		host = "grpc-server:50051"
+	}
+
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
+	if err != nil {
+		panic("Failed to connect to gRPC server: " + err.Error())
+	}
+	return proto.NewUserServiceClient(conn)
 }
 
 func TestIntegration_RegisterAndLogin(t *testing.T) {
-	// Set Gin to Test Mode.
 	gin.SetMode(gin.TestMode)
-	router := setupTestRouter()
+	client := setupTestClient()
 
-	// 1. Test Registration
-	registerPayload := users.RegisterInput{
-		Username:    "inttestuser",
-		Email:       "inttestuser@example.com",
-		Password:    "inttestpassword",
-		Preferences: map[string]interface{}{"diet": "vegan"},
-	}
-	body, err := json.Marshal(registerPayload)
-	assert.NoError(t, err)
+	// Generate unique email and username to avoid duplicates.
+	uniqueEmail := "inttestuser_" + uuid.New().String() + "@example.com"
+	uniqueUsername := "inttestuser_" + uuid.New().String()
 
-	req := httptest.NewRequest("POST", "/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusCreated, w.Code, "Expected status code 201 on register")
+	// 1. Register via gRPC.
+	regResp, err := client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       uniqueEmail,
+		Username:    uniqueUsername,
+		Password:    "inttestpassword", // Plain password as defined in proto.
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	assert.NoError(t, err, "Expected no error during registration")
+	assert.NotEmpty(t, regResp.UserId, "Expected userId in registration response")
 
-	// TODO: Add tests for registration errors:
-	// - Malformed JSON payload
-	// - Missing required fields (e.g., missing password or email)
-	// - Invalid email format
+	// Wait for the record to be fully committed.
+	time.Sleep(2 * time.Second)
 
-	// 2. Test Login
-	loginPayload := map[string]string{
-		"email":    "inttestuser@example.com",
-		"password": "inttestpassword",
-	}
-	body, err = json.Marshal(loginPayload)
-	assert.NoError(t, err)
+	// 2. Login via gRPC.
+	loginResp, err := client.Login(context.Background(), &proto.LoginRequest{
+		Email:    uniqueEmail,
+		Password: "inttestpassword",
+	})
+	assert.NoError(t, err, "Expected no error during login")
+	assert.NotEmpty(t, loginResp.Token, "Expected token in login response")
+	assert.NotEmpty(t, loginResp.UserId, "Expected userId in login response")
 
-	req = httptest.NewRequest("POST", "/login", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code, "Expected status code 200 on login")
-
-	var loginResp map[string]string
-	err = json.Unmarshal(w.Body.Bytes(), &loginResp)
-	assert.NoError(t, err)
-	token, ok := loginResp["token"]
-	assert.True(t, ok, "Expected token in login response")
-	assert.NotEmpty(t, token, "Token should not be empty")
-
-	// TODO: Add tests for login errors:
-	// - Incorrect password (already tested in TestIntegration_InvalidLogin below)
-	// - Malformed JSON in login payload
-
-	// 3. Test Profile (Protected Endpoint)
-	req = httptest.NewRequest("GET", "/profile", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusOK, w.Code, "Expected status code 200 on profile endpoint")
-
-	var profileResp models.User
-	err = json.Unmarshal(w.Body.Bytes(), &profileResp)
-	assert.NoError(t, err)
-	assert.Equal(t, "inttestuser@example.com", profileResp.Email, "Profile email should match")
-
-	// TODO: Add tests for profile endpoint errors:
-	// - Missing or invalid token in Authorization header
-	// - Expired or tampered token (simulate by altering the token)
+	// 3. Get Profile via gRPC.
+	profileResp, err := client.GetProfile(context.Background(), &proto.GetProfileRequest{
+		UserId: loginResp.UserId,
+	})
+	assert.NoError(t, err, "Expected no error during profile fetch")
+	assert.Equal(t, uniqueEmail, profileResp.Email, "Profile email should match")
+	assert.Equal(t, uniqueUsername, profileResp.Username, "Profile username should match")
 }
 
 func TestIntegration_InvalidLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupTestRouter()
+	client := setupTestClient()
 
-	// First, register a user.
-	registerPayload := users.RegisterInput{
-		Username:    "inttestuser2",
-		Email:       "inttestuser2@example.com",
+	// Generate unique email and username for this test.
+	uniqueEmail := "inttestuser2_" + uuid.New().String() + "@example.com"
+	uniqueUsername := "inttestuser2_" + uuid.New().String()
+
+	// 1. Register a user for testing invalid login.
+	_, err := client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       uniqueEmail,
+		Username:    uniqueUsername,
 		Password:    "validpassword",
-		Preferences: map[string]interface{}{"diet": "vegetarian"},
-	}
-	body, err := json.Marshal(registerPayload)
+		Preferences: "{\"diet\":\"vegetarian\"}",
+	})
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest("POST", "/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusCreated, w.Code)
+	// Wait for the record to be committed.
+	time.Sleep(2 * time.Second)
 
-	// Attempt to log in with the wrong password.
-	loginPayload := map[string]string{
-		"email":    "inttestuser2@example.com",
-		"password": "wrongpassword",
+	// 2. Attempt to log in with the wrong password.
+	loginResp, err := client.Login(context.Background(), &proto.LoginRequest{
+		Email:    uniqueEmail,
+		Password: "wrongpassword",
+	})
+	assert.Error(t, err, "Expected error during login with incorrect password")
+	// Since an error is expected, loginResp should be nil.
+	assert.Nil(t, loginResp, "Expected login response to be nil when login fails")
+}
+
+func TestIntegration_DuplicateRegistration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := setupTestClient()
+
+	// Generate unique email and username for this test.
+	uniqueEmail := "inttestdup_" + uuid.New().String() + "@example.com"
+	uniqueUsername := "inttestdup_" + uuid.New().String()
+
+	// 1. First registration should succeed.
+	regResp1, err := client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       uniqueEmail,
+		Username:    uniqueUsername,
+		Password:    "duplicatepassword",
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	assert.NoError(t, err, "Expected no error on first registration")
+	assert.NotEmpty(t, regResp1.UserId, "Expected userId in first registration response")
+
+	// Wait for commit.
+	time.Sleep(2 * time.Second)
+
+	// 2. Second registration with the same email should fail.
+	_, err = client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       uniqueEmail,
+		Username:    uniqueUsername,
+		Password:    "duplicatepassword",
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	assert.Error(t, err, "Expected error on duplicate registration")
+	// Check that the error message contains "user already exists".
+	st, ok := status.FromError(err)
+	assert.True(t, ok, "Expected gRPC status error")
+	assert.Contains(t, st.Message(), "user already exists", "Expected duplicate registration error message")
+}
+
+func TestIntegration_RegisterEmptyEmail(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := setupTestClient()
+
+	// Create a registration request with an empty email.
+	regResp, err := client.Register(context.Background(), &proto.CreateUserRequest{
+		Email:       "",
+		Username:    "malformedUser",
+		Password:    "somepassword",
+		Preferences: "{\"diet\":\"vegan\"}",
+	})
+	// In our environment, an empty email might already be registered, so we expect an error.
+	assert.Error(t, err, "Expected error for registration with empty email")
+	st, ok := status.FromError(err)
+	assert.True(t, ok, "Expected gRPC status error")
+	// Adjust the expected substring as per your service's response.
+	assert.Contains(t, st.Message(), "email cannot be empty", "Expected error message indicating missing email")
+	// Optionally, if a response is returned, ensure that the Email field in the response is empty.
+	if regResp != nil {
+		// Since CreateUserResponse doesn't have an Email field, we check for UserId only.
+		assert.NotEmpty(t, regResp.UserId, "Expected userId even for empty email registration")
 	}
-	body, err = json.Marshal(loginPayload)
-	assert.NoError(t, err)
-
-	req = httptest.NewRequest("POST", "/login", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	assert.Equal(t, http.StatusUnauthorized, w.Code, "Expected status code 401 for invalid login")
-
-	// TODO: Consider testing other invalid login scenarios:
-	// - Non-existent user email
-	// - Malformed login payload
 }

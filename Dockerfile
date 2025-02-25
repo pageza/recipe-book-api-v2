@@ -1,3 +1,5 @@
+#Dockerfile
+
 # Use Ubuntu 22.04 as the base image
 FROM ubuntu:22.04
 
@@ -32,10 +34,9 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o recipe-app ./cmd/main.go
+# RUN go build -o recipe-app ./cmd/grpc-server/main.go
 
 # Expose the API port
 EXPOSE 8080
 
-# Run the application
-ENTRYPOINT ["/workspace/recipe-app"]
+# Remove the ENTRYPOINT so Docker Compose can override with `entrypoint: []` and `command: ...`

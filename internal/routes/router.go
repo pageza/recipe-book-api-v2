@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,23 +13,31 @@ import (
 )
 
 // NewRouter initializes the Gin engine, sets up routes, and returns the router.
-// NewRouter initializes the Gin engine, sets up routes, and returns the router.
 func NewRouter(cfg *config.Config, h *handlers.Handlers) *gin.Engine {
-	// Create a new Gin engine
+	// Create a new Gin engine.
 	router := gin.Default()
 
-	// Apply global middleware
+	// Apply global middleware.
 	router.Use(middleware.Logger())
 
-	// Healthcheck endpoint (could be a simple Gin handler as well)
+	// Healthcheck endpoint with verbose logging.
 	router.GET("/healthcheck", func(c *gin.Context) {
+		log.Println("[Healthcheck] Received request for /healthcheck from", c.ClientIP())
+		// Optionally, log headers.
+		for key, values := range c.Request.Header {
+			for _, value := range values {
+				log.Printf("[Healthcheck] Header: %s = %s", key, value)
+			}
+		}
 		c.String(http.StatusOK, "OK")
+		log.Println("[Healthcheck] Responded with OK")
 	})
 
-	// Delegate public route registration to publicroutes package
+	// Delegate public route registration to publicroutes package.
 	publicroutes.Register(router, h)
-	// Delegate protected route registration to protectedroutes package
+	// Delegate protected route registration to protectedroutes package.
 	protectedroutes.Register(router, cfg, h)
 
+	log.Println("Router routes registered")
 	return router
 }

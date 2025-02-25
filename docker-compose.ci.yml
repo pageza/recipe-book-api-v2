@@ -1,0 +1,109 @@
+# docker-compose.ci.yml
+
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: recipe_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: somepassword
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    # runs only once in CI (in your workflow)
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+      DROP_TABLES: "true"
+    command: ["go", "run", "cmd/migrate/main.go"]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      # Remove 'migrate' so it won't re-run migrations:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+    ports:
+      - "8080:8080"
+    command: ["go", "run", "cmd/api-gateway/main.go"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grpc-server:
+    build: .
+    depends_on:
+      # Remove 'migrate' here too
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+    # Remove network_mode: host
+    # Optionally expose port if you need to talk externally:
+    ports:
+      - "50051:50051"
+    command: ["go", "run", "cmd/grpc-server/main.go"]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z grpc-server 50051 || exit 1"] 
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  #
+  # New "test" service to run "go test" inside the same Docker network as 'db'
+  #
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      # For the test service, remove 'migrate' so it won't start it again
+      - db
+      - grpc-server
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+      GRPC_SERVER_ADDR: grpc-server:50051
+    command: ["go", "test", "./...", "-v"]
+
+  newman:
+    image: postman/newman:latest
+    depends_on:
+      - api
+    volumes:
+      - .:/etc/newman
+    command: >
+      run /etc/newman/collections/user_endpoints/UserEndpoints.postman_collection.json
+      --environment /etc/newman/collections/TestEnvironment.postman_environment.json
+      --reporters cli
+      --delay-request 100
+volumes:
+  db_data:
