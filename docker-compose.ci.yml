@@ -27,7 +27,9 @@ services:
     # Removed "command: ['./migrate.sh']" so the Dockerfile's default CMD is used
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       - db
       - migrate
@@ -71,18 +73,15 @@ services:
   #
   test:
     build:
-      # We'll create a Dockerfile specifically for test steps
       context: .
       dockerfile: Dockerfile.test
     depends_on:
       - db
       - migrate
     environment:
-      # Same DB creds as 'db' service
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: recipe_db
       DB_USER: postgres
       DB_PASSWORD: somepassword
-    # We'll override the default command to run 'go test'
     command: ["go", "test", "./...", "-v"]

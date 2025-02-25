@@ -1,13 +1,28 @@
-FROM golang:1.20-alpine
+FROM ubuntu:22.04
+
+# Install system packages needed for building Go projects
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+# Download and install Go 1.24
+RUN curl -fsSL https://go.dev/dl/go1.24.0.linux-amd64.tar.gz -o /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+
+# Put Go on PATH
+ENV PATH="/usr/local/go/bin:$PATH"
 
 WORKDIR /workspace
 
-# Copy just go.mod & go.sum first, to cache module downloads
+# Copy just go.mod & go.sum to cache module downloads
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Then copy the rest of the code
+# Then copy your full source
 COPY . ./
 
-# Default CMD is a no-op; the test command is specified by Compose:
+# Tests are run by Docker Compose "command"
 CMD ["echo", "Ready to run tests"] 
