@@ -49,14 +49,16 @@ services:
 
   grpc-server:
     build: .
-    command: ["go", "run", "cmd/grpc-server/main.go"]
+    depends_on:
+      - db
+      - migrate
     environment:
-      - DB_HOST=localhost
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=recipe_db
-      - JWT_SECRET=your_jwt_secret
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+    command: ["go", "run", "cmd/grpc-server/main.go"]
     network_mode: host
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
