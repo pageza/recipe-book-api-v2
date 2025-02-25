@@ -13,9 +13,6 @@ services:
     ports:
       - "5432:5432"
 
-    # No "ports" here. We rely on internal Docker networking.
-    # ports:
-    #   - "5432:5432"
 
   migrate:
     build:
