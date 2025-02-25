@@ -14,12 +14,36 @@ type DB = *gorm.DB
 
 // ConnectTestDB connects to the test database with retries.
 func ConnectTestDB() (*gorm.DB, error) {
-	// Read DB_HOST from environment, default to "postgres" if not set.
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
-		dbHost = "postgres"
+		dbHost = "db" // matches "db" service name in docker-compose
 	}
-	dsn := fmt.Sprintf("host=%s user=postgres password=postgres dbname=recipe_db port=5432 sslmode=disable TimeZone=UTC", dbHost)
+
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "recipe_db"
+	}
+
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		// If Docker Compose sets DB_PASSWORD, it gets used.
+		// Otherwise fallback to "postgres" or some local default.
+		dbPassword = "postgres"
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
+
 	var db *gorm.DB
 	var err error
 	maxRetries := 10
