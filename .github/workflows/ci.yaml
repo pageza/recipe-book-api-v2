@@ -61,7 +61,7 @@ jobs:
         run: |
           echo "Waiting for 'users' table in DB..."
           for i in {1..30}; do
-            RESULT=$(docker run --rm --network host -e PGPASSWORD=postgres postgres:14 psql -h 127.0.0.1 -U postgres -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
+            RESULT=$(docker run --rm --network host -e PGPASSWORD=postgres postgres:14 psql -h 127.0.0.1 -U postgres -w -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
             echo "Attempt $i: Result: '$RESULT'"
             if [ "$RESULT" = "users" ]; then
               echo "'users' table exists."
@@ -71,6 +71,7 @@ jobs:
           done
           echo "'users' table not found after waiting."
           exit 1
+
 
 
       - name: List Docker Compose Services
