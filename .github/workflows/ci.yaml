@@ -52,21 +52,28 @@ jobs:
       - name: Start API and gRPC Services
         run: docker compose -f docker-compose.ci.yml up -d api grpc-server
 
-      - name: Wait for DB Schema
+      - name: Download wait-for-it.sh script
         run: |
-          echo "Waiting for users table in DB..."
+          curl -o wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
+          chmod +x wait-for-it.sh
+
+      - name: Wait for Postgres and DB Schema
+        run: |
+          # Wait until Postgres is available on port 5432
+          ./wait-for-it.sh localhost:5432 -t 60 -- echo "Postgres is up"
+          # Now check if the "users" table exists
           for i in {1..30}; do
             RESULT=$(docker run --rm --network host postgres:14 psql -U postgres -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
-            echo "Result: '$RESULT'"
+            echo "Attempt $i: Result: '$RESULT'"
             if [ "$RESULT" = "users" ]; then
-              echo "Users table exists."
+              echo "'users' table exists."
               exit 0
             fi
-            echo "Waiting for users table... attempt $i"
             sleep 2
           done
-          echo "Users table not found after waiting."
+          echo "'users' table not found after waiting."
           exit 1
+
 
 
       - name: List Docker Compose Services
