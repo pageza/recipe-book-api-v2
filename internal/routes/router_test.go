@@ -51,6 +51,15 @@ func (d *dummyService) DeleteUser(userID string) error {
 	return nil
 }
 
+func (d *dummyService) GetUserByEmail(email string) (*models.User, error) {
+	// Return a dummy user based on the provided email.
+	return &models.User{
+		ID:       "dummy-id",
+		Username: "dummyuser",
+		Email:    email,
+	}, nil
+}
+
 // newDummyHandlers returns a composite handlers.Handlers with a real user handler
 // constructed using the dummyService.
 func newDummyHandlers() *handlers.Handlers {
