@@ -9,4 +9,6 @@ import (
 func Register(router *gin.Engine, h *handlers.Handlers) {
 	router.POST("/register", h.User.Register)
 	router.POST("/login", h.User.Login)
+	router.POST("/request-password-reset", h.User.RequestPasswordReset)
+	router.POST("/reset-password", h.User.ResetPassword)
 }

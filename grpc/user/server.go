@@ -61,7 +61,7 @@ func (s *Server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 	}
 
 	// Generate JWT token
-	token, err := utils.GenerateJWT(user.ID, "your-secret") // Replace with actual config-based secret
+	token, err := utils.GenerateJWT(user.ID, "user", []string{"read:profile"}, "testsecret") // Replace with actual config-based secret
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}

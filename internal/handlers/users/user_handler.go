@@ -114,7 +114,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateJWT(user.ID, h.jwtSecret)
+	token, err := utils.GenerateJWT(user.ID, "user", []string{"read:profile"}, h.jwtSecret)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate token"})
 		return
@@ -138,4 +138,58 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, user)
+}
+
+// RequestPasswordReset handles generating a password reset token for a user.
+func (h *UserHandler) RequestPasswordReset(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request, email required"})
+		return
+	}
+
+	// Dummy token generation (in production, generate a secure token and store it)
+	resetToken := uuid.New().String()
+
+	// TODO: Store the reset token with expiration and send it via email.
+
+	// For now, we return the token (for testing purposes)
+	c.JSON(http.StatusOK, gin.H{"resetToken": resetToken})
+}
+
+// ResetPassword handles the password update using the reset token.
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	var req struct {
+		Email       string `json:"email"`
+		ResetToken  string `json:"resetToken"`
+		NewPassword string `json:"newPassword"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" || req.ResetToken == "" || req.NewPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request, missing fields"})
+		return
+	}
+
+	// Dummy validation: in production, validate the resetToken matches what was stored.
+	if req.ResetToken != "expected-dummy-token" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid reset token"})
+		return
+	}
+
+	// Look up the user by email.
+	user, err := h.service.GetUserByEmail(req.Email)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Set the new password. In a real app, you’d also re-hash the password.
+	user.PasswordHash = req.NewPassword
+	if err := h.service.UpdateUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
 }

@@ -15,7 +15,7 @@ import (
 
 func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	secret := "testsecret"
-	token, err := utils.GenerateJWT("test-user-id", secret)
+	token, err := utils.GenerateJWT("test-user-id", "user", []string{"read:profile"}, secret)
 	assert.NoError(t, err)
 
 	gin.SetMode(gin.TestMode)
@@ -54,7 +54,7 @@ func TestJWTAuthMiddleware_MissingHeader(t *testing.T) {
 
 func TestJWTAuthMiddleware_InvalidPrefix(t *testing.T) {
 	secret := "testsecret"
-	token, err := utils.GenerateJWT("test-user-id", secret)
+	token, err := utils.GenerateJWT("test-user-id", "user", []string{"read:profile"}, secret)
 	assert.NoError(t, err)
 
 	gin.SetMode(gin.TestMode)

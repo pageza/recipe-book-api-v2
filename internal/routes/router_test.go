@@ -132,7 +132,7 @@ func TestPublicRoutes(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &loginResp)
 	assert.NoError(t, err)
 	// Expect the token to match what is generated via utils.GenerateJWT.
-	expectedToken, err := utils.GenerateJWT("dummy-id", "testsecret")
+	expectedToken, err := utils.GenerateJWT("dummy-id", "user", []string{"read:profile"}, "testsecret")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedToken, loginResp["token"])
 }
@@ -147,7 +147,7 @@ func TestProtectedRoutes(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 	// Generate a valid token using utils.GenerateJWT.
-	token, err := utils.GenerateJWT("dummy-id", "testsecret")
+	token, err := utils.GenerateJWT("dummy-id", "user", []string{"read:profile"}, "testsecret")
 	assert.NoError(t, err)
 
 	// Access the protected /profile endpoint with a valid token.
