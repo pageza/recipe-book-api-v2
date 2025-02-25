@@ -38,7 +38,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
-	// Ensure that all connections use the same public schema.
+	// Force search_path=public via the options parameter in the DSN.
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC options='-c search_path=public'",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
 
@@ -46,8 +46,6 @@ func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// No auto-migration is run here.
 	return db, nil
 }
 
