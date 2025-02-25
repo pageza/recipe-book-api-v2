@@ -96,3 +96,5 @@ services:
       DB_PASSWORD: somepassword
       GRPC_SERVER_ADDR: grpc-server:50051
     command: ["go", "test", "./...", "-v"]
+volumes:
+  db_data:
