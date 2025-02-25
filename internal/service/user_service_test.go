@@ -43,7 +43,34 @@ func (f *fakeUserRepository) GetUserByID(id string) (*models.User, error) {
 	}
 	return nil, errors.New("user not found")
 }
+func (f *fakeUserRepository) UpdateUser(user *models.User) error {
+	if f.users == nil {
+		return errors.New("user not found")
+	}
+	// Find the user by ID first
+	for _, u := range f.users {
+		if u.ID == user.ID {
+			// Update the user in the map using email as key
+			f.users[user.Email] = user
+			return nil
+		}
+	}
+	return errors.New("user not found")
+}
 
+func (f *fakeUserRepository) DeleteUser(userID string) error {
+	if f.users == nil {
+		return errors.New("user not found")
+	}
+	// Find and delete the user by ID
+	for email, u := range f.users {
+		if u.ID == userID {
+			delete(f.users, email)
+			return nil
+		}
+	}
+	return errors.New("user not found")
+}
 func TestUserService_Register(t *testing.T) {
 	// Set up the fake repository
 	repo := &fakeUserRepository{}
@@ -99,4 +126,49 @@ func TestUserService_Login(t *testing.T) {
 	// Login with wrong password.
 	_, err = svc.Login("testuser@example.com", "wrongpassword")
 	assert.Error(t, err)
+}
+
+func TestUserService_UpdateAndDelete(t *testing.T) {
+	// Set up the fake repository
+	repo := &fakeUserRepository{
+		users: make(map[string]*models.User),
+	}
+	svc := service.NewUserService(repo)
+
+	// Create a test user
+	user := &models.User{
+		ID:           uuid.New().String(),
+		Username:     "testuser",
+		Email:        "test@example.com",
+		PasswordHash: "hashedpassword",
+		Preferences:  "{\"diet\":\"vegan\"}",
+	}
+
+	// Register the user first
+	err := svc.Register(user)
+	assert.NoError(t, err)
+
+	// Update the user
+	updatedUser := &models.User{
+		ID:           user.ID,
+		Username:     "updateduser",
+		Email:        "updated@example.com",
+		PasswordHash: "newhashedpassword",
+		Preferences:  "{\"diet\":\"vegetarian\"}",
+	}
+	err = svc.UpdateUser(updatedUser)
+	assert.NoError(t, err)
+
+	// Verify the update
+	updated, err := repo.GetUserByEmail("updated@example.com")
+	assert.NoError(t, err)
+	assert.Equal(t, "updateduser", updated.Username)
+
+	// Delete the user
+	err = svc.DeleteUser(user.ID)
+	assert.NoError(t, err)
+
+	// Verify the deletion
+	_, err = repo.GetUserByEmail("updated@example.com")
+	assert.Error(t, err, "Expected error when fetching deleted user")
 }
