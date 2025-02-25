@@ -9,60 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
-	"github.com/pageza/recipe-book-api-v2/internal/models"
-	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-// dummyUserService implements service.UserService for HTTP-based testing.
-type dummyUserService struct{}
-
-func (d *dummyUserService) Register(user *models.User) error {
-	// Simulate successful registration.
-	return nil
-}
-
-func (d *dummyUserService) Login(email, password string) (*models.User, error) {
-	// Simulate successful login by generating a hash and returning a dummy user.
-	hash, _ := utils.HashPassword(password)
-	return &models.User{
-		ID:           "dummy-id",
-		Email:        email,
-		PasswordHash: hash,
-		Username:     "dummy",
-		Preferences:  "{}",
-	}, nil
-}
-
-func (d *dummyUserService) GetProfile(userID string) (*models.User, error) {
-	// Simulate profile retrieval.
-	return &models.User{
-		ID:           userID,
-		Email:        "dummy@example.com",
-		Username:     "dummy",
-		PasswordHash: "",
-		Preferences:  "{}",
-	}, nil
-}
-
-func (d *dummyUserService) UpdateUser(user *models.User) error {
-	// Simulate a successful update.
-	return nil
-}
-
-func (d *dummyUserService) DeleteUser(userID string) error {
-	// Simulate a successful deletion.
-	return nil
-}
-
-func (d *dummyUserService) GetUserByEmail(email string) (*models.User, error) {
-	// Return a dummy user based on email.
-	return &models.User{
-		ID:       "dummy-id",
-		Username: "dummyuser",
-		Email:    email,
-	}, nil
-}
 func TestRegisterAndLoginHandler(t *testing.T) {
 	// Set Gin to test mode.
 	gin.SetMode(gin.TestMode)
