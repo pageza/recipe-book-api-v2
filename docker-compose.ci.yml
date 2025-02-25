@@ -12,7 +12,9 @@ services:
       - "5432:5432"
 
   migrate:
-    build: ./migrate
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
     depends_on:
       - db
     environment:
