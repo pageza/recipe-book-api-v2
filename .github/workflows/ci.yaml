@@ -37,13 +37,15 @@ jobs:
           # Let them come online
           sleep 5
 
-      - name: Run Tests (Newman, or your go test container)
+      - name: Run Go tests
         run: |
-          # If you have a "test" service in your docker-compose.ci.yml:
+          # This calls your "test" service which runs "go test ./..."
           docker compose -f docker-compose.ci.yml run --rm test
 
-          # Or if you're running Newman from a separate container named "newman":
-          # docker compose -f docker-compose.ci.yml run --rm newman
+      - name: Run Newman E2E tests
+        run: |
+          # This calls your newman service which references your Postman collection
+          docker compose -f docker-compose.ci.yml run --rm newman
 
       - name: Cleanup
         run: |
