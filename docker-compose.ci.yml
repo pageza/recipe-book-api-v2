@@ -39,6 +39,7 @@ services:
       DB_PASSWORD: somepassword
     ports:
       - "8080:8080"
+    entrypoint: []
     command: ["go", "run", "cmd/api-gateway/main.go"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:8080/healthcheck || exit 1"]
