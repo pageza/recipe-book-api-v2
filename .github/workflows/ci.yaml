@@ -9,6 +9,7 @@ on:
       - '**'
 
 env:
+  COMPOSE_PROJECT_NAME: recipe-book-api-v2
   ACTIONS_RUNNER_DEBUG: true
   ACTIONS_STEP_DEBUG: true
   GRPC_DIAL_ADDRESS: localhost:50051
@@ -72,8 +73,6 @@ jobs:
           echo "'users' table not found after waiting."
           exit 1
 
-
-
       - name: List Docker Compose Services
         run: docker compose -f docker-compose.ci.yml ps
 
@@ -108,9 +107,20 @@ jobs:
             docker run --rm --network host -v $(pwd):/etc/newman postman/newman run "$file" --environment collections/TestEnvironment.postman_environment.json
           done
 
-      - name: Dump container logs 
+      - name: Dump container logs
         if: always()
         run: docker compose -f docker-compose.ci.yml logs
+
+      - name: Run integration tests with Newman
+        run: |
+          for file in $(find collections/user_endpoints -name "*.postman_collection.json"); do
+            echo "Running Postman tests in $file"
+            docker run --rm \
+              --network recipe-book-api-v2_default \
+              -v $(pwd):/etc/newman \
+              postman/newman run "$file" \
+              --environment collections/TestEnvironment.postman_environment.json
+          done
 
       - name: Tear Down Docker Compose Services
         if: always()
