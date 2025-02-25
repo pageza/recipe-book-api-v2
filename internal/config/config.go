@@ -2,14 +2,12 @@
 Copyright (C) 2025 Your Company
 All Rights Reserved.
 */
-// config/config.go
 package config
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/pageza/recipe-book-api-v2/internal/models" // ✅ Import Notification model
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -40,6 +38,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
+	// Ensure that all connections use the same public schema.
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC search_path=public",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
 
@@ -48,12 +47,7 @@ func ConnectDatabase(cfg *Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// ✅ Auto-migrate the notifications table
-	err = db.AutoMigrate(&models.Notification{})
-	if err != nil {
-		return nil, err
-	}
-
+	// No auto-migration is run here.
 	return db, nil
 }
 

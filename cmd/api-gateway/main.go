@@ -2,19 +2,15 @@
 Copyright (C) 2025 Your Company
 All Rights Reserved.
 */
-
-// cmd/api-gateway/main.go
 package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
-	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 	"github.com/pageza/recipe-book-api-v2/internal/routes"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
@@ -33,58 +29,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
-	log.Println("Initial database connection established")
+	log.Println("Database connection established")
 
-	// In CI, skip migrations in the API container.
-	log.Println("Skipping migrations in API container. Assuming migration container has applied schema.")
-
-	// Poll until the "users" table exists.
-	maxWait := 30 * time.Second
-	interval := 2 * time.Second
-	waited := time.Duration(0)
-	for {
-		if db.Migrator().HasTable(&models.User{}) {
-			log.Println("users table detected.")
-			break
-		}
-		tables, err := db.Migrator().GetTables()
-		if err != nil {
-			log.Printf("Failed to retrieve table list: %v", err)
-		} else {
-			log.Printf("Current tables in database: %v", tables)
-		}
-		if waited >= maxWait {
-			log.Fatalf("users table does not exist after waiting %v", maxWait)
-		}
-		log.Printf("Waiting for users table to be created... waited %v", waited)
-		time.Sleep(interval)
-		waited += interval
-	}
-	log.Println("Database ready: users table exists")
-
-	// Force a full reconnection by closing and resetting the connection pool.
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("failed to retrieve underlying sql.DB: %v", err)
-	}
-	// Optionally, set max idle connections to 0 to flush the pool.
-	sqlDB.SetMaxIdleConns(0)
-	err = sqlDB.Close()
-	if err != nil {
-		log.Fatalf("failed to close the stale connection pool: %v", err)
-	}
-	log.Println("Stale DB connection pool closed. Reconnecting...")
-
-	// Reconnect to the database.
-	db, err = config.ConnectDatabase(cfg)
-	if err != nil {
-		log.Fatalf("failed to reconnect to database: %v", err)
-	}
-	// Verify that the new connection sees the users table.
-	if !db.Migrator().HasTable(&models.User{}) {
-		log.Fatalf("reconnected DB does not see users table")
-	}
-	log.Println("New DB connection established and confirmed schema.")
+	// No migration logic is performed here.
+	log.Println("Assuming database schema has been set by migration container.")
 
 	// Initialize repositories, services, and handlers.
 	userRepo := repository.NewUserRepository(db)
