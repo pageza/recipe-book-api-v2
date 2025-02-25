@@ -54,11 +54,9 @@ jobs:
 
       - name: Wait for DB Schema
         run: |
-          # Get the container ID for the postgres service
-          PG_CONTAINER=$(docker compose -f docker-compose.ci.yml ps -q postgres)
-          echo "Waiting for users table to be created in Postgres (container: $PG_CONTAINER)..."
+          echo "Waiting for users table in DB..."
           for i in {1..30}; do
-            RESULT=$(docker exec $PG_CONTAINER psql -U postgres -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
+            RESULT=$(docker run --rm --network host postgres:14 psql -U postgres -d recipe_db -t -c "SELECT to_regclass('public.users');" | tr -d '[:space:]')
             echo "Result: '$RESULT'"
             if [ "$RESULT" = "users" ]; then
               echo "Users table exists."
@@ -69,6 +67,7 @@ jobs:
           done
           echo "Users table not found after waiting."
           exit 1
+
 
       - name: List Docker Compose Services
         run: docker compose -f docker-compose.ci.yml ps
