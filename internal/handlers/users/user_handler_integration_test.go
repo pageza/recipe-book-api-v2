@@ -52,11 +52,11 @@ func TestMain(m *testing.M) {
 	// Run tests.
 	code := m.Run()
 
-	// Clean up the test database (e.g., drop user table)
-	err = testDB.Migrator().DropTable(&models.User{})
-	if err != nil {
-		log.Fatalf("failed to drop users table: %v", err)
-	}
+	// // Clean up the test database (e.g., drop user table)
+	// err = testDB.Migrator().DropTable(&models.User{})
+	// if err != nil {
+	// 	log.Fatalf("failed to drop users table: %v", err)
+	// }
 
 	os.Exit(code)
 }

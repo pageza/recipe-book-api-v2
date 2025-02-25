@@ -29,6 +29,9 @@ jobs:
           # Let migrations finish
           sleep 5
 
+      - name: Check running containers
+        run: docker ps -a
+
       - name: Start API (and optionally gRPC server)
         run: |
           # Now just bring up 'api' and 'grpc-server', but NOT 'migrate' again
@@ -47,6 +50,9 @@ jobs:
         # We'll still let it fail the job, but we want logs no matter what.
         run: |
           docker compose -f docker-compose.ci.yml run --rm newman
+
+      - name: Check container status after tests
+        run: docker compose -f docker-compose.ci.yml ps
 
       - name: Dump container logs
         if: always()     # <-- runs even if previous step fails
