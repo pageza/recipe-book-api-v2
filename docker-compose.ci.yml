@@ -8,7 +8,7 @@ services:
       POSTGRES_DB: recipe_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: somepassword
-    # No ports mapped to avoid collisions on port 5432 in CI
+    # No "ports" here. We rely on internal Docker networking.
     # ports:
     #   - "5432:5432"
 
