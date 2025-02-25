@@ -1,37 +1,43 @@
 # docker-compose.ci.yml
+version: "3.9"
+
 services:
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile.migrate
-    command: ["go", "run", "cmd/migrate/main.go"]
+  db:
+    image: postgres:15
     environment:
-      - PORT=8080
-      - DB_HOST=localhost
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=recipe_db
-      - JWT_SECRET=your_jwt_secret
-    network_mode: host
+      POSTGRES_DB: recipe_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: somepassword
+    ports:
+      - "5432:5432"
+
+  migrate:
+    build: ./migrate
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+    command: ["./migrate.sh"]
     # Note: This container is a one-off job. Its exit code determines success.
     
   api:
     build: .
-    entrypoint: []
-    command: ["go", "run", "cmd/api-gateway/main.go"]
-    environment:
-      - PORT=8080
-      - DB_HOST=localhost
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=recipe_db
-      - JWT_SECRET=your_jwt_secret
-      - SKIP_MIGRATIONS=true
-    network_mode: host
     depends_on:
+      - db
       - migrate
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: recipe_db
+      DB_USER: postgres
+      DB_PASSWORD: somepassword
+    ports:
+      - "8080:8080"
+    command: ["./run_api.sh"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:8080/healthcheck || exit 1"]
       interval: 10s
