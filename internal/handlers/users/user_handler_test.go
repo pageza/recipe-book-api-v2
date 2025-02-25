@@ -45,6 +45,16 @@ func (d *dummyUserService) GetProfile(userID string) (*models.User, error) {
 	}, nil
 }
 
+func (d *dummyUserService) UpdateUser(user *models.User) error {
+	// Simulate a successful update.
+	return nil
+}
+
+func (d *dummyUserService) DeleteUser(userID string) error {
+	// Simulate a successful deletion.
+	return nil
+}
+
 func TestRegisterAndLoginHandler(t *testing.T) {
 	// Set Gin to test mode.
 	gin.SetMode(gin.TestMode)
