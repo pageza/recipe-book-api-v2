@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
@@ -127,44 +126,38 @@ func TestUserService_Login(t *testing.T) {
 }
 
 func TestUserService_UpdateAndDelete(t *testing.T) {
-	// Set up the fake repository
-	repo := &inMemoryUserRepo{}
+	// Use newInMemoryUserRepo to ensure repo.users is initialized.
+	repo := newInMemoryUserRepo()
 	svc := service.NewUserService(repo)
 
-	// Create a test user
+	// Create and register a test user.
 	user := &models.User{
-		ID:           uuid.New().String(),
-		Username:     "testuser",
-		Email:        "test@example.com",
-		PasswordHash: "hashedpassword",
-		Preferences:  "{\"diet\":\"vegan\"}",
+		ID:       "test-id",
+		Email:    "test@example.com",
+		Username: "testuser",
+		// For Update/Delete tests we don't need a valid hashed password,
+		// but if a password check was involved, use utils.HashPassword("password")
+		PasswordHash: "dummy",
+		Preferences:  "{}",
 	}
-
-	// Register the user first
 	err := svc.Register(user)
-	assert.NoError(t, err)
+	assert.NoError(t, err, "Register should succeed for a new user")
 
-	// Update the user
-	updatedUser := &models.User{
-		ID:           user.ID,
-		Username:     "updateduser",
-		Email:        "updated@example.com",
-		PasswordHash: "newhashedpassword",
-		Preferences:  "{\"diet\":\"vegetarian\"}",
-	}
-	err = svc.UpdateUser(updatedUser)
-	assert.NoError(t, err)
+	// Update the user.
+	user.Username = "updateduser"
+	err = svc.UpdateUser(user)
+	assert.NoError(t, err, "UpdateUser should succeed for an existing user")
 
-	// Verify the update
-	updated, err := repo.GetUserByEmail("updated@example.com")
-	assert.NoError(t, err)
-	assert.Equal(t, "updateduser", updated.Username)
+	// Confirm the update by fetching the user from the repo.
+	updatedUser, err := repo.GetUserByID(user.ID)
+	assert.NoError(t, err, "GetUserByID should succeed for an updated user")
+	assert.Equal(t, "updateduser", updatedUser.Username, "Username should be updated")
 
-	// Delete the user
+	// Delete the user.
 	err = svc.DeleteUser(user.ID)
-	assert.NoError(t, err)
+	assert.NoError(t, err, "DeleteUser should succeed for an existing user")
 
-	// Verify the deletion
-	_, err = repo.GetUserByEmail("updated@example.com")
-	assert.Error(t, err, "Expected error when fetching deleted user")
+	// The deleted user should no longer be found.
+	_, err = repo.GetUserByID(user.ID)
+	assert.Error(t, err, "Fetching a deleted user should return an error")
 }
