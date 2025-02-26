@@ -40,8 +40,9 @@ func (d *dummyUserService) Register(user *models.User) error {
 	if d.users == nil {
 		d.users = make(map[string]*models.User)
 	}
+	// Check if the user already exists; if yes, return the exact error variable.
 	if _, exists := d.users[user.ID]; exists {
-		return fmt.Errorf("user already exists")
+		return service.ErrUserAlreadyExists
 	}
 	d.users[user.ID] = user
 	return nil
@@ -50,6 +51,10 @@ func (d *dummyUserService) Register(user *models.User) error {
 func (d *dummyUserService) Login(email, password string) (*models.User, error) {
 	for _, user := range d.users {
 		if user.Email == email {
+			// For testing: if the password is not "password", we simulate invalid credentials.
+			if password != "password" {
+				return nil, service.ErrInvalidCredentials
+			}
 			return user, nil
 		}
 	}

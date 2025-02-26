@@ -83,7 +83,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	// Attempt to register the user via the service layer.
 	if err := h.service.Register(user); err != nil {
 		if errors.Is(err, service.ErrUserAlreadyExists) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			c.JSON(http.StatusConflict, gin.H{"error": "user already exists"})
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
@@ -93,6 +93,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "user registered"})
 }
 
+// Login authenticates a user.
 func (h *UserHandler) Login(c *gin.Context) {
 	var input struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -105,7 +106,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	user, err := h.service.Login(input.Email, input.Password)
 	if err != nil {
-		// Check for invalid credentials.
+		// If the error is related to not found or invalid credentials, return 401.
 		if errors.Is(err, service.ErrUserNotFound) || errors.Is(err, service.ErrInvalidCredentials) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		} else {
@@ -233,7 +234,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Set the new password. In a real app, you’d also re-hash the password.
+	// Set the new password. In a real app, you'd also re-hash the password.
 	user.PasswordHash = req.NewPassword
 	if err := h.service.UpdateUser(user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update password"})
