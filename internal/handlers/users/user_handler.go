@@ -7,8 +7,7 @@ package users
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -43,32 +42,35 @@ type RegisterInput struct {
 func (h *UserHandler) Register(c *gin.Context) {
 	var input RegisterInput
 	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Printf("[DEBUG][Register] Binding error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("[DEBUG][Register] Received registration request for email: %s", input.Email)
 
 	// Validate that email is provided.
 	if input.Email == "" {
+		log.Printf("[DEBUG][Register] Empty email provided")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "email cannot be empty"})
 		return
 	}
 
-	// Hash the password before storing it.
 	hashed, err := utils.HashPassword(input.Password)
 	if err != nil {
+		log.Printf("[DEBUG][Register] Password hashing failed for %s: %v", input.Email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not hash password"})
 		return
 	}
+	log.Printf("[DEBUG][Register] Password hashed successfully for %s", input.Email)
 
-	// Convert preferences to a JSON string.
 	prefBytes, err := json.Marshal(input.Preferences)
 	if err != nil {
+		log.Printf("[DEBUG][Register] Preferences marshalling failed for %s: %v", input.Email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not process preferences"})
 		return
 	}
 	preferencesStr := string(prefBytes)
 
-	// Create a new user model.
 	user := &models.User{
 		Username:     input.Username,
 		Email:        input.Email,
@@ -76,21 +78,23 @@ func (h *UserHandler) Register(c *gin.Context) {
 		Preferences:  preferencesStr,
 	}
 
-	// Generate an ID if none is set.
 	if user.ID == "" {
 		user.ID = uuid.New().String()
+		log.Printf("[DEBUG][Register] Generated new user ID: %s for email: %s", user.ID, user.Email)
 	}
 
-	// Attempt to register the user via the service layer.
 	if err := h.service.Register(user); err != nil {
-		if errors.Is(err, service.ErrUserAlreadyExists) {
-			c.JSON(http.StatusConflict, gin.H{"error": "user already exists"})
+		log.Printf("[DEBUG][Register] Service returned error: %+v, type: %T", err, err)
+		if appErr, ok := err.(*service.AppError); ok {
+			log.Printf("[DEBUG][Register] Recognized AppError: Code %d, Msg: %s", appErr.Code, appErr.Msg)
+			c.JSON(appErr.Code, gin.H{"error": appErr.Msg})
 		} else {
+			log.Printf("[DEBUG][Register] Unrecognized error type")
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
 		return
 	}
-
+	log.Printf("[DEBUG][Register] User registered successfully: %s", user.Email)
 	c.JSON(http.StatusCreated, gin.H{"message": "user registered"})
 }
 
@@ -101,28 +105,33 @@ func (h *UserHandler) Login(c *gin.Context) {
 		Password string `json:"password" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Printf("[DEBUG][Login] Binding error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("[DEBUG][Login] Received login request for email: %s", input.Email)
 
 	user, err := h.service.Login(input.Email, input.Password)
 	if err != nil {
-		fmt.Printf("DEBUG: Handler received error: %+v, type: %T\n", err, err)
-
-		// If the error is related to not found or invalid credentials, return 401.
-		if errors.Is(err, service.ErrUserNotFound) || errors.Is(err, service.ErrInvalidCredentials) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		log.Printf("[DEBUG][Login] Service returned error: %+v, type: %T", err, err)
+		if appErr, ok := err.(*service.AppError); ok {
+			log.Printf("[DEBUG][Login] Recognized AppError: Code %d, Msg: %s", appErr.Code, appErr.Msg)
+			c.JSON(appErr.Code, gin.H{"error": appErr.Msg})
 		} else {
+			log.Printf("[DEBUG][Login] Unrecognized error type")
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
 		return
 	}
+	log.Printf("[DEBUG][Login] User authenticated successfully: %s", user.Email)
 
 	token, err := utils.GenerateJWT(user.ID, "user", []string{"read:profile"}, h.jwtSecret)
 	if err != nil {
+		log.Printf("[DEBUG][Login] Failed to generate JWT for user %s: %v", user.Email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate token"})
 		return
 	}
+	log.Printf("[DEBUG][Login] JWT generated successfully for user %s", user.Email)
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
@@ -130,22 +139,28 @@ func (h *UserHandler) Login(c *gin.Context) {
 // Profile returns the profile of the authenticated user, embedding the extended
 // JWT claims in the JSON response under the "userClaims" key.
 func (h *UserHandler) Profile(c *gin.Context) {
+	log.Printf("[DEBUG][Profile] Profile endpoint called")
 	value, exists := c.Get("userClaims")
 	if !exists {
+		log.Printf("[DEBUG][Profile] User claims not found in context")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
 		return
 	}
 	claims, ok := value.(*utils.JWTClaims)
 	if !ok {
+		log.Printf("[DEBUG][Profile] Claims type assertion failed, got: %T", value)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
 		return
 	}
+	log.Printf("[DEBUG][Profile] Retrieved claims: %+v", claims)
 
 	user, err := h.service.GetProfile(claims.UserID)
 	if err != nil {
+		log.Printf("[DEBUG][Profile] GetProfile error for userID %s: %v", claims.UserID, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+	log.Printf("[DEBUG][Profile] Profile successful for user: %+v", user)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",

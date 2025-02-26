@@ -6,21 +6,28 @@ All Rights Reserved.
 package service
 
 import (
-	"errors"
 	"log"
+	"net/http"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 )
 
+type AppError struct {
+	Code int
+	Msg  string
+}
+
+func (e *AppError) Error() string {
+	return e.Msg
+}
+
 var (
-	// ErrUserAlreadyExists is returned when a duplicate registration is attempted.
-	ErrUserAlreadyExists = errors.New("user already exists")
-	// ErrUserNotFound is returned when a user is not found.
-	ErrUserNotFound = errors.New("user not found")
-	// ErrInvalidCredentials is returned when the login credentials are incorrect.
-	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserAlreadyExists  = &AppError{Code: http.StatusConflict, Msg: "user already exists"}
+	ErrUserNotFound       = &AppError{Code: http.StatusUnauthorized, Msg: "user not found"}
+	ErrInvalidCredentials = &AppError{Code: http.StatusUnauthorized, Msg: "invalid credentials"}
+	ErrEmailCannotBeEmpty = &AppError{Code: http.StatusBadRequest, Msg: "email cannot be empty"}
 )
 
 // UserService defines the business logic for user operations.
@@ -44,37 +51,42 @@ func NewUserService(repo repository.UserRepository) UserService {
 
 // Register creates a new user. It returns ErrUserAlreadyExists if the email is already registered.
 func (s *userService) Register(user *models.User) error {
+	log.Printf("[DEBUG][Service.Register] Registering user: %s", user.Email)
 
 	if user.Email == "" {
-		return errors.New("email cannot be empty")
+		log.Printf("[DEBUG][Service.Register] Empty email encountered for user: %s", user.Email)
+		return ErrEmailCannotBeEmpty
 	}
 
 	if existing, _ := s.repo.GetUserByEmail(user.Email); existing != nil {
-		log.Printf("Register: duplicate registration attempted for email: %s", user.Email)
+		log.Printf("[DEBUG][Service.Register] Duplicate registration attempted for email: %s", user.Email)
 		return ErrUserAlreadyExists
 	}
+
 	err := s.repo.CreateUser(user)
 	if err != nil {
-		log.Printf("Register: failed to create user (%s): %v", user.Email, err)
+		log.Printf("[DEBUG][Service.Register] Failed to create user (%s): %v", user.Email, err)
 	} else {
-		log.Printf("Register: user (%s) registered successfully", user.Email)
+		log.Printf("[DEBUG][Service.Register] User (%s) registered successfully", user.Email)
 	}
 	return err
 }
 
 // Login retrieves the user by email and verifies the password.
 func (s *userService) Login(email, password string) (*models.User, error) {
+	log.Printf("[DEBUG][Service.Login] Attempting to find user by email: %s", email)
 	user, err := s.repo.GetUserByEmail(email)
-	if err != nil {
-		// If the user is not found (or repository returns gorm.ErrRecordNotFound),
-		// return the constant error.
-		return nil, ErrUserNotFound
+	if err != nil || user == nil {
+		log.Printf("[DEBUG][Service.Login] User not found for email: %s, error: %v", email, err)
+		return nil, ErrUserNotFound // now a generic 401 error
 	}
+	log.Printf("[DEBUG][Service.Login] User found for email: %s", email)
 
-	// Use the password hash check to compare the provided password.
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
+		log.Printf("[DEBUG][Service.Login] Password mismatch for user %s", email)
 		return nil, ErrInvalidCredentials
 	}
+	log.Printf("[DEBUG][Service.Login] Password verified for user %s", email)
 	return user, nil
 }
 
