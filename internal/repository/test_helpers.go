@@ -16,7 +16,7 @@ type DB = *gorm.DB
 func ConnectTestDB() (*gorm.DB, error) {
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
-		dbHost = "localhost" // default for testing
+		dbHost = "postgres" // default for testing
 	}
 
 	dbPort := os.Getenv("DB_PORT")

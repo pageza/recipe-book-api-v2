@@ -36,6 +36,10 @@ func newDummyUserService() *dummyUserService {
 }
 
 func (d *dummyUserService) Register(user *models.User) error {
+	// Ensure the users map is initialized to prevent nil map panics.
+	if d.users == nil {
+		d.users = make(map[string]*models.User)
+	}
 	if _, exists := d.users[user.ID]; exists {
 		return fmt.Errorf("user already exists")
 	}
