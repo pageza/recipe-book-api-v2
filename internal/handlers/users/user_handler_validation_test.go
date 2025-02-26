@@ -11,6 +11,7 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
+	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +23,7 @@ func (e *errorUserService) Register(user *models.User) error {
 	if user.Email == "" {
 		return errors.Wrap(errors.New("email is required"), "registration error")
 	}
-	return nil
+	return errors.Wrap(errors.New("unexpected registration error"), "registration error")
 }
 
 func (e *errorUserService) Login(email, password string) (*models.User, error) {
@@ -49,9 +50,15 @@ func (e *errorUserService) GetUserByEmail(email string) (*models.User, error) {
 }
 
 // duplicateUserService simulates a duplicate registration scenario.
-type duplicateUserService struct{}
+type duplicateUserService struct {
+	registered bool
+}
 
 func (d *duplicateUserService) Register(user *models.User) error {
+	if !d.registered {
+		d.registered = true
+		return nil
+	}
 	return errors.Wrap(service.ErrUserAlreadyExists, "duplicate registration error")
 }
 
@@ -86,7 +93,7 @@ func (v *validUserService) Login(email, password string) (*models.User, error) {
 	return &models.User{
 		ID:       "valid-user-id",
 		Username: "validuser",
-		Email:    email,
+		Email:    "valid@example.com",
 	}, nil
 }
 
@@ -94,7 +101,7 @@ func (v *validUserService) GetProfile(userID string) (*models.User, error) {
 	return &models.User{
 		ID:       userID,
 		Username: "validuser",
-		Email:    "validuser@example.com",
+		Email:    "valid@example.com",
 	}, nil
 }
 
@@ -110,7 +117,7 @@ func (v *validUserService) GetUserByEmail(email string) (*models.User, error) {
 	return &models.User{
 		ID:       "valid-id",
 		Username: "validuser",
-		Email:    email,
+		Email:    "valid@example.com",
 	}, nil
 }
 
@@ -279,19 +286,18 @@ func TestRegisterDuplicate(t *testing.T) {
 	b, err := json.Marshal(payload)
 	assert.NoError(t, err)
 
-	// First registration should succeed.
+	// First registration attempt should succeed with status 201.
 	req1 := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
 	router.ServeHTTP(w1, req1)
 	assert.Equal(t, http.StatusCreated, w1.Code, "Expected first registration to succeed")
 
-	// Second registration should fail due to duplicate.
+	// Second registration attempt should fail with a 409 Conflict.
 	req2 := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)
-	// Expect a conflict status (409 Conflict) for duplicate registration.
 	assert.Equal(t, http.StatusConflict, w2.Code, "Expected duplicate registration to return conflict")
 }
 
@@ -300,13 +306,13 @@ func TestGetProfileSuccess(t *testing.T) {
 	svc := &validUserService{}
 	handler := users.NewUserHandler(svc, "testsecret")
 	router := gin.Default()
-	// We assume the profile endpoint is registered as GET /profile.
-	// In a real scenario, middleware would set the user ID in the context.
-	router.GET("/profile", func(c *gin.Context) {
-		// Manually inject the user ID into Gin context for testing.
-		c.Set("userID", "valid-id")
-		handler.Profile(c)
+
+	// Inject claims as if added by JWT middleware.
+	router.Use(func(c *gin.Context) {
+		c.Set("userClaims", &utils.JWTClaims{UserID: "valid-user-id"})
+		c.Next()
 	})
+	router.GET("/profile", handler.Profile)
 
 	req := httptest.NewRequest("GET", "/profile", nil)
 	w := httptest.NewRecorder()
@@ -314,11 +320,17 @@ func TestGetProfileSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code, "Expected status 200 for successful profile fetch")
 
-	var profileResp models.User
-	err := json.Unmarshal(w.Body.Bytes(), &profileResp)
+	var resp struct {
+		Status     string                 `json:"status"`
+		UserClaims map[string]interface{} `json:"userClaims"`
+	}
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
-	assert.Equal(t, "valid@example.com", profileResp.Email, "Profile email should match")
-	assert.Equal(t, "validuser", profileResp.Username, "Profile username should match")
+
+	email, _ := resp.UserClaims["email"].(string)
+	username, _ := resp.UserClaims["username"].(string)
+	assert.Equal(t, "valid@example.com", email, "Profile email should match")
+	assert.Equal(t, "validuser", username, "Profile username should match")
 }
 
 func TestRegisterMalformedJSON(t *testing.T) {
