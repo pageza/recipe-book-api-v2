@@ -81,28 +81,20 @@ func (r *inMemoryUserRepo) UpdateUser(user *models.User) error {
 // Implement other methods such as GetUserByEmail, UpdateUser as needed.
 
 func TestUserService_Register(t *testing.T) {
-	// Set up the fake repository
-	repo := &inMemoryUserRepo{}
+	repo := newInMemoryUserRepo() // ensures repo.users is initialized
 	svc := service.NewUserService(repo)
-
-	// Create a user with hashed password.
-	plainPassword := "testpassword"
-	hash, err := utils.HashPassword(plainPassword)
-	assert.NoError(t, err)
-
 	user := &models.User{
-		ID:           uuid.New().String(), // Use UUID for unique ID
-		Username:     "testuser",
+		ID:           "test-id",
 		Email:        "testuser@example.com",
-		PasswordHash: hash,
-		Preferences:  "{\"diet\":\"vegan\"}",
+		Username:     "testuser",
+		PasswordHash: "hashedpassword",
+		Preferences:  "{}",
 	}
 
-	// Registration should succeed the first time.
-	err = svc.Register(user)
+	err := svc.Register(user)
 	assert.NoError(t, err)
 
-	// Trying to register the same user again should fail.
+	// Now, attempting to register the same user should yield an error.
 	err = svc.Register(user)
 	assert.Error(t, err)
 }

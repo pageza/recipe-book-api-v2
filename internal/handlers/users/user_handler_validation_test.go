@@ -320,17 +320,19 @@ func TestGetProfileSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code, "Expected status 200 for successful profile fetch")
 
+	// Updated structure reflecting flat JSON response:
 	var resp struct {
-		Status     string                 `json:"status"`
-		UserClaims map[string]interface{} `json:"userClaims"`
+		Status      string      `json:"status"`
+		ID          string      `json:"id"`
+		Email       string      `json:"email"`
+		Username    string      `json:"username"`
+		Preferences interface{} `json:"preferences"`
 	}
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 
-	email, _ := resp.UserClaims["email"].(string)
-	username, _ := resp.UserClaims["username"].(string)
-	assert.Equal(t, "valid@example.com", email, "Profile email should match")
-	assert.Equal(t, "validuser", username, "Profile username should match")
+	assert.Equal(t, "valid@example.com", resp.Email, "Profile email should match")
+	assert.Equal(t, "validuser", resp.Username, "Profile username should match")
 }
 
 func TestRegisterMalformedJSON(t *testing.T) {
