@@ -2,7 +2,8 @@ package models
 
 import "time"
 
-// Recipe represents a comprehensive recipe in the database.
+// Recipe represents a comprehensive recipe in the system.
+// swagger:model Recipe
 type Recipe struct {
 	ID                string `gorm:"primaryKey"`
 	Title             string // The title or name of the recipe.
@@ -17,6 +18,7 @@ type Recipe struct {
 }
 
 // RecipeQueryResponse is a container for query results.
+// swagger:model RecipeQueryResponse
 type RecipeQueryResponse struct {
 	Recipes []*Recipe `json:"recipes"`
 }
