@@ -166,14 +166,13 @@ func (h *UserHandler) Profile(c *gin.Context) {
 	}
 	log.Printf("[DEBUG][Profile] Profile successful for user: %+v", user)
 
+	// Return a flat JSON structure as expected by router tests.
 	c.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"userClaims": map[string]interface{}{
-			"id":          user.ID,
-			"email":       user.Email,
-			"username":    user.Username,
-			"preferences": user.Preferences,
-		},
+		"status":      "success",
+		"id":          user.ID,
+		"email":       user.Email,
+		"username":    user.Username,
+		"preferences": user.Preferences,
 	})
 }
 

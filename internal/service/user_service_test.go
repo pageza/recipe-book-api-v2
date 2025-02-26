@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -12,68 +13,76 @@ import (
 	"github.com/pageza/recipe-book-api-v2/pkg/utils" // gRPC client import
 )
 
-// fakeUserRepository implements service.UserRepository for testing.
-type fakeUserRepository struct {
+// inMemoryUserRepo is an in‑memory implementation of the UserRepository interface.
+type inMemoryUserRepo struct {
+	mu    sync.Mutex
 	users map[string]*models.User
 }
 
-func (f *fakeUserRepository) CreateUser(user *models.User) error {
-	if f.users == nil {
-		f.users = make(map[string]*models.User)
+func newInMemoryUserRepo() *inMemoryUserRepo {
+	return &inMemoryUserRepo{
+		users: make(map[string]*models.User),
 	}
-	if _, exists := f.users[user.Email]; exists {
+}
+
+func (r *inMemoryUserRepo) CreateUser(user *models.User) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.users[user.ID]; exists {
 		return errors.New("user already exists")
 	}
-	f.users[user.Email] = user
+	r.users[user.ID] = user
 	return nil
 }
 
-func (f *fakeUserRepository) GetUserByEmail(email string) (*models.User, error) {
-	if user, exists := f.users[email]; exists {
-		return user, nil
+func (r *inMemoryUserRepo) GetUserByID(id string) (*models.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	user, exists := r.users[id]
+	if !exists {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
+}
+
+func (r *inMemoryUserRepo) DeleteUser(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.users[id]; !exists {
+		return errors.New("user not found")
+	}
+	delete(r.users, id)
+	return nil
+}
+
+// GetUserByEmail iterates over the stored users and returns the one with the matching email.
+func (r *inMemoryUserRepo) GetUserByEmail(email string) (*models.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, user := range r.users {
+		if user.Email == email {
+			return user, nil
+		}
 	}
 	return nil, errors.New("user not found")
 }
 
-func (f *fakeUserRepository) GetUserByID(id string) (*models.User, error) {
-	for _, u := range f.users {
-		if u.ID == id {
-			return u, nil
-		}
-	}
-	return nil, errors.New("user not found")
-}
-func (f *fakeUserRepository) UpdateUser(user *models.User) error {
-	if f.users == nil {
+// UpdateUser updates an existing user in the repository.
+func (r *inMemoryUserRepo) UpdateUser(user *models.User) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.users[user.ID]; !exists {
 		return errors.New("user not found")
 	}
-	// Find the user by ID first
-	for _, u := range f.users {
-		if u.ID == user.ID {
-			// Update the user in the map using email as key
-			f.users[user.Email] = user
-			return nil
-		}
-	}
-	return errors.New("user not found")
+	r.users[user.ID] = user
+	return nil
 }
 
-func (f *fakeUserRepository) DeleteUser(userID string) error {
-	if f.users == nil {
-		return errors.New("user not found")
-	}
-	// Find and delete the user by ID
-	for email, u := range f.users {
-		if u.ID == userID {
-			delete(f.users, email)
-			return nil
-		}
-	}
-	return errors.New("user not found")
-}
+// Implement other methods such as GetUserByEmail, UpdateUser as needed.
+
 func TestUserService_Register(t *testing.T) {
 	// Set up the fake repository
-	repo := &fakeUserRepository{}
+	repo := &inMemoryUserRepo{}
 	svc := service.NewUserService(repo)
 
 	// Create a user with hashed password.
@@ -100,7 +109,7 @@ func TestUserService_Register(t *testing.T) {
 
 func TestUserService_Login(t *testing.T) {
 	// Set up the fake repository
-	repo := &fakeUserRepository{}
+	repo := &inMemoryUserRepo{}
 	svc := service.NewUserService(repo)
 
 	plainPassword := "testpassword"
@@ -130,9 +139,7 @@ func TestUserService_Login(t *testing.T) {
 
 func TestUserService_UpdateAndDelete(t *testing.T) {
 	// Set up the fake repository
-	repo := &fakeUserRepository{
-		users: make(map[string]*models.User),
-	}
+	repo := &inMemoryUserRepo{}
 	svc := service.NewUserService(repo)
 
 	// Create a test user
