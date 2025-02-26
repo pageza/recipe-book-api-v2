@@ -10,6 +10,7 @@ import (
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
+	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	// gRPC client import
 )
 
@@ -100,24 +101,26 @@ func TestUserService_Register(t *testing.T) {
 }
 
 func TestUserService_Login(t *testing.T) {
-	// Ensure the repository is properly initialized.
 	repo := newInMemoryUserRepo()
 	svc := service.NewUserService(repo)
 
-	// First, create a user so that a login can succeed.
+	// Generate a valid hash for the plaintext "password".
+	hashed, err := utils.HashPassword("password")
+	assert.NoError(t, err)
+
 	user := &models.User{
 		ID:           "test-id",
 		Email:        "testuser@example.com",
 		Username:     "testuser",
-		PasswordHash: "hashedpassword", // Assume a valid hashed password here.
+		PasswordHash: hashed,
 		Preferences:  "{}",
 	}
 
-	// Use the repo's CreateUser method which will now work correctly
-	err := repo.CreateUser(user)
+	// Create the user in the repository.
+	err = repo.CreateUser(user)
 	assert.NoError(t, err)
 
-	// Now perform the login
+	// Now perform the login with the correct password.
 	loggedUser, err := svc.Login("testuser@example.com", "password")
 	assert.NoError(t, err)
 	assert.Equal(t, user.ID, loggedUser.ID)
