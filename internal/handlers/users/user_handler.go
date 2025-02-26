@@ -8,6 +8,7 @@ package users
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -106,6 +107,8 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	user, err := h.service.Login(input.Email, input.Password)
 	if err != nil {
+		fmt.Printf("DEBUG: Handler received error: %+v, type: %T\n", err, err)
+
 		// If the error is related to not found or invalid credentials, return 401.
 		if errors.Is(err, service.ErrUserNotFound) || errors.Is(err, service.ErrInvalidCredentials) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})

@@ -51,7 +51,6 @@ func (d *dummyUserService) Register(user *models.User) error {
 func (d *dummyUserService) Login(email, password string) (*models.User, error) {
 	for _, user := range d.users {
 		if user.Email == email {
-			// Instead of comparing plain text, verify the hashed password.
 			if !utils.CheckPasswordHash(password, user.PasswordHash) {
 				return nil, service.ErrInvalidCredentials
 			}

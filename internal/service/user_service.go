@@ -62,20 +62,19 @@ func (s *userService) Register(user *models.User) error {
 	return err
 }
 
-// Login verifies user credentials. It returns ErrUserNotFound if the user does not exist,
-// and ErrInvalidCredentials if the password does not match.
+// Login retrieves the user by email and verifies the password.
 func (s *userService) Login(email, password string) (*models.User, error) {
-
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
-		log.Printf("Login: user with email (%s) not found: %v", email, err)
+		// If the user is not found (or repository returns gorm.ErrRecordNotFound),
+		// return the constant error.
 		return nil, ErrUserNotFound
 	}
+
+	// Use the password hash check to compare the provided password.
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
-		log.Printf("Login: invalid credentials for email: %s", email)
 		return nil, ErrInvalidCredentials
 	}
-	log.Printf("Login: user (%s) logged in successfully", email)
 	return user, nil
 }
 
