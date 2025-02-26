@@ -6,12 +6,14 @@ All Rights Reserved.
 package service
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
+	"github.com/pkg/errors"
 )
 
 type AppError struct {
@@ -49,27 +51,28 @@ func NewUserService(repo repository.UserRepository) UserService {
 	return &userService{repo: repo}
 }
 
-// Register creates a new user. It returns ErrUserAlreadyExists if the email is already registered.
+// Register creates a new user. It returns an appropriate wrapped error if the email is empty or already exists.
 func (s *userService) Register(user *models.User) error {
 	log.Printf("[DEBUG][Service.Register] Registering user: %s", user.Email)
 
 	if user.Email == "" {
 		log.Printf("[DEBUG][Service.Register] Empty email encountered for user: %s", user.Email)
-		return ErrEmailCannotBeEmpty
+		return errors.Wrap(ErrEmailCannotBeEmpty, "registration failed: empty email")
 	}
 
 	if existing, _ := s.repo.GetUserByEmail(user.Email); existing != nil {
 		log.Printf("[DEBUG][Service.Register] Duplicate registration attempted for email: %s", user.Email)
-		return ErrUserAlreadyExists
+		return errors.Wrap(ErrUserAlreadyExists, "registration failed: duplicate email")
 	}
 
 	err := s.repo.CreateUser(user)
 	if err != nil {
 		log.Printf("[DEBUG][Service.Register] Failed to create user (%s): %v", user.Email, err)
-	} else {
-		log.Printf("[DEBUG][Service.Register] User (%s) registered successfully", user.Email)
+		return errors.Wrap(err, "registration failed: create user error")
 	}
-	return err
+
+	log.Printf("[DEBUG][Service.Register] User (%s) registered successfully", user.Email)
+	return nil
 }
 
 // Login retrieves the user by email and verifies the password.
@@ -78,61 +81,58 @@ func (s *userService) Login(email, password string) (*models.User, error) {
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil || user == nil {
 		log.Printf("[DEBUG][Service.Login] User not found for email: %s, error: %v", email, err)
-		return nil, ErrUserNotFound // now a generic 401 error
+		return nil, errors.Wrap(ErrUserNotFound, fmt.Sprintf("login failed: user not found for email %s", email))
 	}
 	log.Printf("[DEBUG][Service.Login] User found for email: %s", email)
 
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
 		log.Printf("[DEBUG][Service.Login] Password mismatch for user %s", email)
-		return nil, ErrInvalidCredentials
+		return nil, errors.Wrap(ErrInvalidCredentials, "login failed: invalid credentials")
 	}
 	log.Printf("[DEBUG][Service.Login] Password verified for user %s", email)
 	return user, nil
 }
 
-// GetProfile retrieves a user's profile by ID. If the user is not found, it returns ErrUserNotFound.
+// GetProfile retrieves a user's profile by ID.
 func (s *userService) GetProfile(userID string) (*models.User, error) {
 	user, err := s.repo.GetUserByID(userID)
-	if err != nil {
+	if err != nil || user == nil {
 		log.Printf("GetProfile: user with ID (%s) not found: %v", userID, err)
-		return nil, ErrUserNotFound
+		return nil, errors.Wrap(ErrUserNotFound, fmt.Sprintf("profile retrieval failed for userID %s", userID))
 	}
 	log.Printf("GetProfile: retrieved profile for user ID: %s", userID)
 	return user, nil
 }
 
-// GetUserByEmail retrieves a user's profile by email. If the user is not found, it returns ErrUserNotFound.
+// GetUserByEmail retrieves a user's profile by email.
 func (s *userService) GetUserByEmail(email string) (*models.User, error) {
 	user, err := s.repo.GetUserByEmail(email)
-	if err != nil {
+	if err != nil || user == nil {
 		log.Printf("GetUserByEmail: user with email (%s) not found: %v", email, err)
-		return nil, ErrUserNotFound
+		return nil, errors.Wrap(ErrUserNotFound, fmt.Sprintf("failed to get user by email %s", email))
 	}
 	log.Printf("GetUserByEmail: retrieved profile for user email: %s", email)
 	return user, nil
 }
 
-// UpdateUser updates an existing user. If a new password is provided, it will be hashed.
+// UpdateUser updates an existing user.
 func (s *userService) UpdateUser(updated *models.User) error {
-	// Confirm the user exists
 	existing, err := s.repo.GetUserByID(updated.ID)
-	if err != nil {
-		return ErrUserNotFound
+	if err != nil || existing == nil {
+		return errors.Wrap(ErrUserNotFound, fmt.Sprintf("update failed: user %s not found", updated.ID))
 	}
 
-	// Re-hash the new password if provided, otherwise keep the old hash.
 	if updated.PasswordHash != "" {
 		newHash, err := utils.HashPassword(updated.PasswordHash)
 		if err != nil {
 			log.Printf("UpdateUser: could not hash new password: %v", err)
-			return err
+			return errors.Wrap(err, "update failed: password hash error")
 		}
 		updated.PasswordHash = newHash
 	} else {
 		updated.PasswordHash = existing.PasswordHash
 	}
 
-	// If email, username, or preferences are empty, keep the existing values.
 	if updated.Email == "" {
 		updated.Email = existing.Email
 	}
@@ -146,7 +146,7 @@ func (s *userService) UpdateUser(updated *models.User) error {
 	err = s.repo.UpdateUser(updated)
 	if err != nil {
 		log.Printf("UpdateUser: failed to update user %s: %v", updated.ID, err)
-		return err
+		return errors.Wrap(err, fmt.Sprintf("update failed for user %s", updated.ID))
 	}
 	log.Printf("UpdateUser: user %s updated successfully", updated.ID)
 	return nil
@@ -154,15 +154,14 @@ func (s *userService) UpdateUser(updated *models.User) error {
 
 // DeleteUser removes a user by their ID.
 func (s *userService) DeleteUser(userID string) error {
-	// Ensure the user exists before deletion.
 	_, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		return ErrUserNotFound
+		return errors.Wrap(ErrUserNotFound, fmt.Sprintf("delete failed: user %s not found", userID))
 	}
 	err = s.repo.DeleteUser(userID)
 	if err != nil {
 		log.Printf("DeleteUser: failed to delete user %s: %v", userID, err)
-		return err
+		return errors.Wrap(err, fmt.Sprintf("delete failed for user %s", userID))
 	}
 	log.Printf("DeleteUser: user %s deleted successfully", userID)
 	return nil

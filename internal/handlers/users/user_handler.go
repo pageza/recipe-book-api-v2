@@ -16,6 +16,7 @@ import (
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 // UserHandler handles user-related HTTP requests.
@@ -32,6 +33,7 @@ func NewUserHandler(svc service.UserService, jwtSecret string) *UserHandler {
 	}
 }
 
+// RegisterInput is a struct for registration input.
 type RegisterInput struct {
 	Username    string                 `json:"username" binding:"required"`
 	Email       string                 `json:"email" binding:"required,email"`
@@ -85,12 +87,13 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	if err := h.service.Register(user); err != nil {
 		log.Printf("[DEBUG][Register] Service returned error: %+v, type: %T", err, err)
-		if appErr, ok := err.(*service.AppError); ok {
+		rootErr := errors.Cause(err)
+		if appErr, ok := rootErr.(*service.AppError); ok {
 			log.Printf("[DEBUG][Register] Recognized AppError: Code %d, Msg: %s", appErr.Code, appErr.Msg)
 			c.JSON(appErr.Code, gin.H{"error": appErr.Msg})
 		} else {
 			log.Printf("[DEBUG][Register] Unrecognized error type")
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": rootErr.Error()})
 		}
 		return
 	}
@@ -114,12 +117,13 @@ func (h *UserHandler) Login(c *gin.Context) {
 	user, err := h.service.Login(input.Email, input.Password)
 	if err != nil {
 		log.Printf("[DEBUG][Login] Service returned error: %+v, type: %T", err, err)
-		if appErr, ok := err.(*service.AppError); ok {
+		rootErr := errors.Cause(err)
+		if appErr, ok := rootErr.(*service.AppError); ok {
 			log.Printf("[DEBUG][Login] Recognized AppError: Code %d, Msg: %s", appErr.Code, appErr.Msg)
 			c.JSON(appErr.Code, gin.H{"error": appErr.Msg})
 		} else {
 			log.Printf("[DEBUG][Login] Unrecognized error type")
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": rootErr.Error()})
 		}
 		return
 	}

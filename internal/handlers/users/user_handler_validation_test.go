@@ -3,7 +3,6 @@ package users_test
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
+	"github.com/pageza/recipe-book-api-v2/internal/service"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,58 +20,59 @@ type errorUserService struct{}
 
 func (e *errorUserService) Register(user *models.User) error {
 	if user.Email == "" {
-		return errors.New("email is required")
+		return errors.Wrap(errors.New("email is required"), "registration error")
 	}
 	return nil
 }
 
 func (e *errorUserService) Login(email, password string) (*models.User, error) {
-	return nil, errors.New("invalid credentials")
+	// Return a wrapped version of ErrInvalidCredentials.
+	return nil, errors.Wrap(service.ErrInvalidCredentials, "login error")
 }
 
 func (e *errorUserService) GetProfile(userID string) (*models.User, error) {
-	return nil, errors.New("user not found")
+	return nil, errors.Wrap(errors.New("user not found"), "profile error")
 }
 
 // Added stub for UpdateUser to satisfy the interface.
 func (e *errorUserService) UpdateUser(user *models.User) error {
-	return errors.New("update error")
+	return errors.Wrap(errors.New("update error"), "update error")
 }
 
 // Added stub for DeleteUser to satisfy the interface.
 func (e *errorUserService) DeleteUser(userID string) error {
-	return errors.New("delete error")
+	return errors.Wrap(errors.New("delete error"), "delete error")
 }
 
 func (e *errorUserService) GetUserByEmail(email string) (*models.User, error) {
-	return nil, errors.New("get user error: user not found")
+	return nil, errors.Wrap(errors.New("get user error: user not found"), "get user error")
 }
 
 // duplicateUserService simulates a duplicate registration scenario.
 type duplicateUserService struct{}
 
 func (d *duplicateUserService) Register(user *models.User) error {
-	return errors.New("user already exists")
+	return errors.Wrap(service.ErrUserAlreadyExists, "duplicate registration error")
 }
 
 func (d *duplicateUserService) Login(email, password string) (*models.User, error) {
-	return nil, errors.New("duplicate user login error")
+	return nil, errors.Wrap(errors.New("duplicate user login error"), "login error")
 }
 
 func (d *duplicateUserService) GetProfile(userID string) (*models.User, error) {
-	return nil, errors.New("duplicate user profile error")
+	return nil, errors.Wrap(errors.New("duplicate user profile error"), "profile error")
 }
 
 func (d *duplicateUserService) UpdateUser(user *models.User) error {
-	return errors.New("duplicate update error")
+	return errors.Wrap(errors.New("duplicate update error"), "update error")
 }
 
 func (d *duplicateUserService) DeleteUser(userID string) error {
-	return errors.New("duplicate delete error")
+	return errors.Wrap(errors.New("duplicate delete error"), "delete error")
 }
 
 func (d *duplicateUserService) GetUserByEmail(email string) (*models.User, error) {
-	return nil, errors.New("duplicate get user error")
+	return nil, errors.Wrap(errors.New("duplicate get user error"), "get user error")
 }
 
 // validUserService simulates a service that returns valid user data.
@@ -111,6 +113,7 @@ func (v *validUserService) GetUserByEmail(email string) (*models.User, error) {
 		Email:    email,
 	}, nil
 }
+
 func TestRegisterValidation_MissingEmail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	svc := &errorUserService{}
