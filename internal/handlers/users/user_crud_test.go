@@ -3,7 +3,6 @@ package users_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,11 +47,12 @@ func (d *dummyUserService) Register(user *models.User) error {
 	return nil
 }
 
+// Login authenticates a user by comparing the provided password with the stored hashed password.
 func (d *dummyUserService) Login(email, password string) (*models.User, error) {
 	for _, user := range d.users {
 		if user.Email == email {
-			// For testing: if the password is not "password", we simulate invalid credentials.
-			if password != "password" {
+			// Instead of comparing plain text, verify the hashed password.
+			if !utils.CheckPasswordHash(password, user.PasswordHash) {
 				return nil, service.ErrInvalidCredentials
 			}
 			return user, nil
@@ -68,19 +68,22 @@ func (d *dummyUserService) GetProfile(userID string) (*models.User, error) {
 	return nil, service.ErrUserNotFound
 }
 
+// UpdateUser simulates updating a user.
+// Return the service.ErrUserNotFound if the user does not exist.
 func (d *dummyUserService) UpdateUser(user *models.User) error {
 	if _, exists := d.users[user.ID]; !exists {
-		return fmt.Errorf("user not found")
+		return service.ErrUserNotFound
 	}
 	d.users[user.ID] = user
 	return nil
 }
 
+// DeleteUser simulates deletion by removing the user from the in-memory map.
+// Return service.ErrUserNotFound instead of a freshly formatted error.
 func (d *dummyUserService) DeleteUser(userID string) error {
 	if _, exists := d.users[userID]; !exists {
-		return fmt.Errorf("user not found")
+		return service.ErrUserNotFound
 	}
-	// Simulate deletion by removing the user from the in-memory map.
 	delete(d.users, userID)
 	return nil
 }

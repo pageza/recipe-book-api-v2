@@ -127,7 +127,6 @@ func (h *UserHandler) Login(c *gin.Context) {
 // Profile returns the profile of the authenticated user, embedding the extended
 // JWT claims in the JSON response under the "userClaims" key.
 func (h *UserHandler) Profile(c *gin.Context) {
-	// Get the extended claims from context.
 	value, exists := c.Get("userClaims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
@@ -141,24 +140,17 @@ func (h *UserHandler) Profile(c *gin.Context) {
 
 	user, err := h.service.GetProfile(claims.UserID)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 
-	// Return a structured JSON response, including the entire userClaims.
-	// This format is safe for frontend consumption.
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
 		"userClaims": map[string]interface{}{
 			"id":          user.ID,
-			"username":    user.Username,
 			"email":       user.Email,
-			"role":        claims.Role,
-			"permissions": claims.Permissions,
+			"username":    user.Username,
+			"preferences": user.Preferences,
 		},
 	})
 }
