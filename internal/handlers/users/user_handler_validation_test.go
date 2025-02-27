@@ -3,6 +3,7 @@ package users_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,8 +12,6 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
-	"github.com/pageza/recipe-book-api-v2/pkg/utils"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,33 +19,22 @@ import (
 type errorUserService struct{}
 
 func (e *errorUserService) Register(user *models.User) error {
+	// Simulate validation error if email is missing.
 	if user.Email == "" {
-		return errors.Wrap(errors.New("email is required"), "registration error")
+		return errors.New("email is required")
 	}
-	return errors.Wrap(errors.New("unexpected registration error"), "registration error")
+	// Otherwise, simulate success.
+	return nil
 }
 
 func (e *errorUserService) Login(email, password string) (*models.User, error) {
-	// Return a wrapped version of ErrInvalidCredentials.
-	return nil, errors.Wrap(service.ErrInvalidCredentials, "login error")
+	// Simulate invalid credentials error using the sentinel error.
+	return nil, service.ErrInvalidCredentials
 }
 
 func (e *errorUserService) GetProfile(userID string) (*models.User, error) {
-	return nil, errors.Wrap(errors.New("user not found"), "profile error")
-}
-
-// Added stub for UpdateUser to satisfy the interface.
-func (e *errorUserService) UpdateUser(user *models.User) error {
-	return errors.Wrap(errors.New("update error"), "update error")
-}
-
-// Added stub for DeleteUser to satisfy the interface.
-func (e *errorUserService) DeleteUser(userID string) error {
-	return errors.Wrap(errors.New("delete error"), "delete error")
-}
-
-func (e *errorUserService) GetUserByEmail(email string) (*models.User, error) {
-	return nil, errors.Wrap(errors.New("get user error: user not found"), "get user error")
+	// Simulate "user not found" error using the sentinel error.
+	return nil, service.ErrUserNotFound
 }
 
 // duplicateUserService simulates a duplicate registration scenario.
@@ -55,69 +43,43 @@ type duplicateUserService struct {
 }
 
 func (d *duplicateUserService) Register(user *models.User) error {
-	if !d.registered {
-		d.registered = true
-		return nil
+	if d.registered {
+		// Return the sentinel error for duplicate registration.
+		return service.ErrUserAlreadyExists
 	}
-	return errors.Wrap(service.ErrUserAlreadyExists, "duplicate registration error")
+	d.registered = true
+	return nil
 }
 
 func (d *duplicateUserService) Login(email, password string) (*models.User, error) {
-	return nil, errors.Wrap(errors.New("duplicate user login error"), "login error")
+	return nil, nil
 }
 
 func (d *duplicateUserService) GetProfile(userID string) (*models.User, error) {
-	return nil, errors.Wrap(errors.New("duplicate user profile error"), "profile error")
-}
-
-func (d *duplicateUserService) UpdateUser(user *models.User) error {
-	return errors.Wrap(errors.New("duplicate update error"), "update error")
-}
-
-func (d *duplicateUserService) DeleteUser(userID string) error {
-	return errors.Wrap(errors.New("duplicate delete error"), "delete error")
-}
-
-func (d *duplicateUserService) GetUserByEmail(email string) (*models.User, error) {
-	return nil, errors.Wrap(errors.New("duplicate get user error"), "get user error")
+	return nil, nil
 }
 
 // validUserService simulates a service that returns valid user data.
 type validUserService struct{}
 
-func (v *validUserService) Register(user *models.User) error {
-	return nil
-}
+func (v *validUserService) Register(user *models.User) error { return nil }
 
 func (v *validUserService) Login(email, password string) (*models.User, error) {
 	return &models.User{
-		ID:       "valid-user-id",
-		Username: "validuser",
-		Email:    "valid@example.com",
+		ID:           "valid-id",
+		Email:        email,
+		Username:     "validuser",
+		PasswordHash: "hashed", // dummy value
+		Preferences:  "{}",
 	}, nil
 }
 
 func (v *validUserService) GetProfile(userID string) (*models.User, error) {
 	return &models.User{
-		ID:       userID,
-		Username: "validuser",
-		Email:    "valid@example.com",
-	}, nil
-}
-
-func (v *validUserService) UpdateUser(user *models.User) error {
-	return nil
-}
-
-func (v *validUserService) DeleteUser(userID string) error {
-	return nil
-}
-
-func (v *validUserService) GetUserByEmail(email string) (*models.User, error) {
-	return &models.User{
-		ID:       "valid-id",
-		Username: "validuser",
-		Email:    "valid@example.com",
+		ID:          userID,
+		Email:       "valid@example.com",
+		Username:    "validuser",
+		Preferences: "{}",
 	}, nil
 }
 
@@ -286,18 +248,19 @@ func TestRegisterDuplicate(t *testing.T) {
 	b, err := json.Marshal(payload)
 	assert.NoError(t, err)
 
-	// First registration attempt should succeed with status 201.
+	// First registration should succeed.
 	req1 := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
 	router.ServeHTTP(w1, req1)
 	assert.Equal(t, http.StatusCreated, w1.Code, "Expected first registration to succeed")
 
-	// Second registration attempt should fail with a 409 Conflict.
+	// Second registration should fail due to duplicate.
 	req2 := httptest.NewRequest("POST", "/register", bytes.NewReader(b))
 	req2.Header.Set("Content-Type", "application/json")
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)
+	// Expect a conflict status (409 Conflict) for duplicate registration.
 	assert.Equal(t, http.StatusConflict, w2.Code, "Expected duplicate registration to return conflict")
 }
 
@@ -306,13 +269,13 @@ func TestGetProfileSuccess(t *testing.T) {
 	svc := &validUserService{}
 	handler := users.NewUserHandler(svc, "testsecret")
 	router := gin.Default()
-
-	// Inject claims as if added by JWT middleware.
-	router.Use(func(c *gin.Context) {
-		c.Set("userClaims", &utils.JWTClaims{UserID: "valid-user-id"})
-		c.Next()
+	// We assume the profile endpoint is registered as GET /profile.
+	// In a real scenario, middleware would set the user ID in the context.
+	router.GET("/profile", func(c *gin.Context) {
+		// Manually inject the user ID into Gin context for testing.
+		c.Set("userID", "valid-id")
+		handler.Profile(c)
 	})
-	router.GET("/profile", handler.Profile)
 
 	req := httptest.NewRequest("GET", "/profile", nil)
 	w := httptest.NewRecorder()
@@ -320,19 +283,11 @@ func TestGetProfileSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code, "Expected status 200 for successful profile fetch")
 
-	// Updated structure reflecting flat JSON response:
-	var resp struct {
-		Status      string      `json:"status"`
-		ID          string      `json:"id"`
-		Email       string      `json:"email"`
-		Username    string      `json:"username"`
-		Preferences interface{} `json:"preferences"`
-	}
-	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	var profileResp models.User
+	err := json.Unmarshal(w.Body.Bytes(), &profileResp)
 	assert.NoError(t, err)
-
-	assert.Equal(t, "valid@example.com", resp.Email, "Profile email should match")
-	assert.Equal(t, "validuser", resp.Username, "Profile username should match")
+	assert.Equal(t, "valid@example.com", profileResp.Email, "Profile email should match")
+	assert.Equal(t, "validuser", profileResp.Username, "Profile username should match")
 }
 
 func TestRegisterMalformedJSON(t *testing.T) {

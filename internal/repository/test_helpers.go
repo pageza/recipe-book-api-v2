@@ -16,7 +16,7 @@ type DB = *gorm.DB
 func ConnectTestDB() (*gorm.DB, error) {
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
-		dbHost = "postgres" // default for testing
+		dbHost = "db" // matches "db" service name in docker-compose
 	}
 
 	dbPort := os.Getenv("DB_PORT")
