@@ -2,12 +2,29 @@
 Copyright (C) 2025 Your Company
 All Rights Reserved.
 */
+
+// @title Recipe Book API
+// @version 1.0
+// @description API documentation for the Recipe Book API.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /api/v1
+
 package main
 
 import (
 	"log"
 	"time"
 
+	_ "github.com/pageza/recipe-book-api-v2/docs"
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"

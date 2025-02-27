@@ -2,7 +2,6 @@ package routes
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/pageza/recipe-book-api-v2/docs"
@@ -23,24 +22,8 @@ func NewRouter(cfg *config.Config, h *handlers.Handlers) *gin.Engine {
 	// Apply global middleware.
 	router.Use(middleware.Logger())
 
-	// Healthcheck endpoint.
-	// @Summary Healthcheck
-	// @Description Returns OK if the API is running.
-	// @Tags Health
-	// @Produce plain
-	// @Success 200 {string} string "OK"
-	// @Router /healthcheck [get]
-	router.GET("/healthcheck", func(c *gin.Context) {
-		log.Println("[Healthcheck] Received request for /healthcheck from", c.ClientIP())
-		// Optionally, log headers.
-		for key, values := range c.Request.Header {
-			for _, value := range values {
-				log.Printf("[Healthcheck] Header: %s = %s", key, value)
-			}
-		}
-		c.String(http.StatusOK, "OK")
-		log.Println("[Healthcheck] Responded with OK")
-	})
+	// Healthcheck endpoint using the dedicated handler.
+	router.GET("/healthcheck", handlers.HealthHandler)
 
 	// Delegate public route registration to publicroutes package.
 	publicroutes.Register(router, h)

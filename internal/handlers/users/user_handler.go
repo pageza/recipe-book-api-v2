@@ -41,17 +41,15 @@ type RegisterInput struct {
 	Preferences map[string]interface{} `json:"preferences"`
 }
 
-/*
-@Summary Register a new user
-@Description Registers a new user in the system.
-@Tags Users
-@Accept  json
-@Produce json
-@Param register body RegisterInput true "User registration data"
-@Success 201 {object} map[string]string "User registered successfully"
-@Failure 400 {object} map[string]string "Bad request"
-@Router /register [post]
-*/
+// @Summary Register a new user
+// @Description Registers a new user in the system.
+// @Tags Users
+// @Accept  json
+// @Produce json
+// @Param register body RegisterInput true "User registration data"
+// @Success 201 {object} map[string]string "User registered successfully"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Router /register [post]
 func (h *UserHandler) Register(c *gin.Context) {
 	var input RegisterInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -106,18 +104,16 @@ func (h *UserHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "user registered"})
 }
 
-/*
-@Summary Login
-@Description Authenticates a user with email and password and returns a JWT token.
-@Tags Users
-@Accept  json
-@Produce json
-@Param login body object{email=string,password=string} true "User login credentials"
-@Success 200 {object} map[string]string "JWT token"
-@Failure 400 {object} map[string]string "Bad request"
-@Failure 401 {object} map[string]string "Unauthorized"
-@Router /login [post]
-*/
+// @Summary Login
+// @Description Authenticates a user with email and password and returns a JWT token.
+// @Tags Users
+// @Accept  json
+// @Produce json
+// @Param login body object{email=string,password=string} true "User login credentials"
+// @Success 200 {object} map[string]string "JWT token"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /login [post]
 func (h *UserHandler) Login(c *gin.Context) {
 	var input struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -147,15 +143,13 @@ func (h *UserHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
-/*
-@Summary Get Profile
-@Description Retrieves the profile of the authenticated user.
-@Tags Users
-@Produce json
-@Success 200 {object} models.User "User profile information"
-@Failure 401 {object} map[string]string "Unauthorized"
-@Router /profile [get]
-*/
+// @Summary Get Profile
+// @Description Retrieves the profile of the authenticated user.
+// @Tags Users
+// @Produce json
+// @Success 200 {object} models.User "User profile information"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /profile [get]
 func (h *UserHandler) Profile(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
