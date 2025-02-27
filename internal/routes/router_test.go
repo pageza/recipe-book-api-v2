@@ -40,6 +40,26 @@ func (d *dummyService) GetProfile(userID string) (*models.User, error) {
 	}, nil
 }
 
+// New stub implementations to satisfy the interface:
+func (d *dummyService) UpdateUser(user *models.User) error {
+	// Simulate a successful update.
+	return nil
+}
+
+func (d *dummyService) DeleteUser(userID string) error {
+	// Simulate a successful deletion.
+	return nil
+}
+
+func (d *dummyService) GetUserByEmail(email string) (*models.User, error) {
+	// Return a dummy user based on the provided email.
+	return &models.User{
+		ID:       "dummy-id",
+		Username: "dummyuser",
+		Email:    email,
+	}, nil
+}
+
 // newDummyHandlers returns a composite handlers.Handlers with a real user handler
 // constructed using the dummyService.
 func newDummyHandlers() *handlers.Handlers {
@@ -112,7 +132,7 @@ func TestPublicRoutes(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &loginResp)
 	assert.NoError(t, err)
 	// Expect the token to match what is generated via utils.GenerateJWT.
-	expectedToken, err := utils.GenerateJWT("dummy-id", "testsecret")
+	expectedToken, err := utils.GenerateJWT("dummy-id", "user", []string{"read:profile"}, "testsecret")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedToken, loginResp["token"])
 }
@@ -127,7 +147,7 @@ func TestProtectedRoutes(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 	// Generate a valid token using utils.GenerateJWT.
-	token, err := utils.GenerateJWT("dummy-id", "testsecret")
+	token, err := utils.GenerateJWT("dummy-id", "user", []string{"read:profile"}, "testsecret")
 	assert.NoError(t, err)
 
 	// Access the protected /profile endpoint with a valid token.

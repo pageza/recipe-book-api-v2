@@ -12,16 +12,21 @@ import (
 )
 
 type JWTClaims struct {
-	UserID string `json:"user_id"`
+	UserID      string   `json:"user_id"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID, secret string) (string, error) {
+func GenerateJWT(userID, role string, permissions []string, secret string) (string, error) {
 	claims := JWTClaims{
-		UserID: userID,
+		UserID:      userID,
+		Role:        role,
+		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(72 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
