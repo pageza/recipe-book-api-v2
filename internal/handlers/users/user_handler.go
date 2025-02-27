@@ -33,7 +33,8 @@ func NewUserHandler(svc service.UserService, jwtSecret string) *UserHandler {
 	}
 }
 
-// RegisterInput is a struct for registration input.
+// RegisterInput is the input payload for registering a new user.
+// swagger:model RegisterInput
 type RegisterInput struct {
 	Username    string                 `json:"username" binding:"required"`
 	Email       string                 `json:"email" binding:"required,email"`
@@ -41,6 +42,15 @@ type RegisterInput struct {
 	Preferences map[string]interface{} `json:"preferences"`
 }
 
+// @Summary Register a new user
+// @Description Registers a new user in the system.
+// @Tags Users
+// @Accept  json
+// @Produce json
+// @Param register body RegisterInput true "User registration data"
+// @Success 201 {object} map[string]string "User registered successfully"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Router /register [post]
 func (h *UserHandler) Register(c *gin.Context) {
 	var input RegisterInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -101,7 +111,16 @@ func (h *UserHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "user registered"})
 }
 
-// Login authenticates a user.
+// @Summary Login
+// @Description Authenticates a user with email and password and returns a JWT token.
+// @Tags Users
+// @Accept  json
+// @Produce json
+// @Param login body object{email=string,password=string} true "User login credentials"
+// @Success 200 {object} map[string]string "JWT token"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /login [post]
 func (h *UserHandler) Login(c *gin.Context) {
 	var input struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -139,9 +158,14 @@ func (h *UserHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
-// Profile returns the profile of the authenticated user with additional information.
-// Profile returns the profile of the authenticated user, embedding the extended
-// JWT claims in the JSON response under the "userClaims" key.
+// @Summary Get Profile
+// @Description Retrieves the profile of the authenticated user.
+// @Tags Users
+// @Produce json
+// @Success 200 {object} models.User "User profile information"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /profile [get]
+
 func (h *UserHandler) Profile(c *gin.Context) {
 	log.Printf("[DEBUG][Profile] Profile endpoint called")
 	value, exists := c.Get("userClaims")

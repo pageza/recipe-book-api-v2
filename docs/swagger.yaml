@@ -1,0 +1,224 @@
+basePath: /api/v1
+definitions:
+  github_com_pageza_recipe-book-api-v2_internal_models.Recipe:
+    properties:
+      allergyDisclaimer:
+        description: Disclaimer text about potential allergy risks.
+        type: string
+      appliances:
+        description: JSON string of required appliances/cookware.
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      ingredients:
+        description: JSON string of the detailed ingredient list.
+        type: string
+      nutritionalInfo:
+        description: JSON string containing nutritional breakdown (calories, macros,
+          etc.)
+        type: string
+      steps:
+        description: JSON string of the step-by-step instructions.
+        type: string
+      title:
+        description: The title or name of the recipe.
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  github_com_pageza_recipe-book-api-v2_internal_models.RecipeQueryResponse:
+    properties:
+      recipes:
+        items:
+          $ref: '#/definitions/github_com_pageza_recipe-book-api-v2_internal_models.Recipe'
+        type: array
+    type: object
+  github_com_pageza_recipe-book-api-v2_internal_models.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      preferences:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_handlers_users.RegisterInput:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      preferences:
+        additionalProperties: true
+        type: object
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API documentation for the Recipe Book API.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Recipe Book API
+  version: "1.0"
+paths:
+  /healthcheck:
+    get:
+      description: Returns OK if the API is running.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Healthcheck
+      tags:
+      - Health
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with email and password and returns a JWT
+        token.
+      parameters:
+      - description: User login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login
+      tags:
+      - Users
+  /profile:
+    get:
+      description: Retrieves the profile of the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile information
+          schema:
+            $ref: '#/definitions/github_com_pageza_recipe-book-api-v2_internal_models.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get Profile
+      tags:
+      - Users
+  /query:
+    post:
+      consumes:
+      - application/json
+      description: Queries recipes matching the search criteria.
+      parameters:
+      - description: Recipe query request
+        in: body
+        name: query
+        required: true
+        schema:
+          properties:
+            query:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Query result
+          schema:
+            $ref: '#/definitions/github_com_pageza_recipe-book-api-v2_internal_models.RecipeQueryResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query Recipes
+      tags:
+      - Recipes
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new user in the system.
+      parameters:
+      - description: User registration data
+        in: body
+        name: register
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handlers_users.RegisterInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - Users
+swagger: "2.0"

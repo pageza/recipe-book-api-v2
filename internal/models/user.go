@@ -7,6 +7,8 @@ package models
 
 import "time"
 
+// User represents a user in the system.
+// @swagger:model User
 type User struct {
 	ID           string    `gorm:"type:uuid;primaryKey" json:"id"`
 	Username     string    `gorm:"type:varchar(100);unique;not null" json:"username"`

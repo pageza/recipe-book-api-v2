@@ -3,6 +3,7 @@ package models
 import "time"
 
 // Notification represents a notification message sent to a user.
+// swagger:model Notification
 type Notification struct {
 	ID        string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	UserID    string    `gorm:"type:uuid;not null;index"` // Foreign key reference to users

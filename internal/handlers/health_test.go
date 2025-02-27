@@ -5,17 +5,26 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHealthHandler(t *testing.T) {
-	req := httptest.NewRequest("GET", "/healthcheck", nil)
+	// Set Gin to test mode.
+	gin.SetMode(gin.TestMode)
+
+	// Create a response recorder and Gin context.
 	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
 
-	handlers.HealthHandler(w, req)
+	// Create a GET test request to pass into the Gin context.
+	ctx.Request = httptest.NewRequest("GET", "/healthcheck", nil)
 
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected 200 OK")
+	// Call the HealthHandler using the Gin context.
+	handlers.HealthHandler(ctx)
+
+	// Verify the response.
+	assert.Equal(t, http.StatusOK, w.Code, "Expected 200 OK")
 	assert.Equal(t, "OK", w.Body.String(), "Expected response body to be 'OK'")
 }
