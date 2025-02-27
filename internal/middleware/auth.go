@@ -14,7 +14,6 @@ import (
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 )
 
-// JWTAuth validates the JWT token and stores the extended claims in the context.
 func JWTAuth(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -33,13 +32,11 @@ func JWTAuth(secret string) gin.HandlerFunc {
 			return
 		}
 		fmt.Println("DEBUG: Auth - token valid, claims:", claims)
-		// Instead of setting just the userID, we now store the entire extended claims.
-		c.Set("userClaims", claims)
+		c.Set("userID", claims.UserID)
 		c.Next()
 	}
 }
 
-// Logger is a simple logging middleware.
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Write log output to gin.DefaultWriter so tests can capture it.

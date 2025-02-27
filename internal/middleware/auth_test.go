@@ -15,7 +15,7 @@ import (
 
 func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	secret := "testsecret"
-	token, err := utils.GenerateJWT("test-user-id", "user", []string{"read:profile"}, secret)
+	token, err := utils.GenerateJWT("test-user-id", secret)
 	assert.NoError(t, err)
 
 	gin.SetMode(gin.TestMode)
@@ -28,14 +28,10 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	// Invoke JWTAuth middleware.
 	middleware.JWTAuth(secret)(c)
 
-	// Updated expectation: our middleware stores the entire claims under "userClaims".
-	claimsRaw, exists := c.Get("userClaims")
-	assert.True(t, exists, "Expected userClaims to be set in context")
-
-	// Replace ExtendedJWTClaims with your actual claims type name.
-	claims, ok := claimsRaw.(*utils.JWTClaims)
-	assert.True(t, ok, "Expected userClaims to be of type ExtendedJWTClaims")
-	assert.Equal(t, "test-user-id", claims.UserID)
+	// Check that userID was set in the context.
+	userID, exists := c.Get("userID")
+	assert.True(t, exists, "Expected userID to be set in context")
+	assert.Equal(t, "test-user-id", userID)
 }
 
 func TestJWTAuthMiddleware_MissingHeader(t *testing.T) {
@@ -58,7 +54,7 @@ func TestJWTAuthMiddleware_MissingHeader(t *testing.T) {
 
 func TestJWTAuthMiddleware_InvalidPrefix(t *testing.T) {
 	secret := "testsecret"
-	token, err := utils.GenerateJWT("test-user-id", "user", []string{"read:profile"}, secret)
+	token, err := utils.GenerateJWT("test-user-id", secret)
 	assert.NoError(t, err)
 
 	gin.SetMode(gin.TestMode)

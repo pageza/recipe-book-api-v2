@@ -2,13 +2,13 @@ package user
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	pb "github.com/pageza/recipe-book-api-v2/proto/proto"
-	"github.com/pkg/errors"
 )
 
 // Server implements the gRPC UserService.
@@ -24,22 +24,27 @@ func NewServer(svc service.UserService) *Server {
 
 // Register implements the Register RPC.
 func (s *Server) Register(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
+	// Convert proto request to internal model
 	user := &models.User{
 		Username:     req.Username,
 		Email:        req.Email,
-		PasswordHash: "",
+		PasswordHash: "", // Will be generated below
 		Preferences:  req.Preferences,
 	}
+
+	// Generate a user ID
 	user.ID = uuid.New().String()
 
+	// Hash the password
 	hashed, err := utils.HashPassword(req.Password)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to hash password")
+		return nil, fmt.Errorf("failed to hash password: %v", err)
 	}
 	user.PasswordHash = hashed
 
+	// Call business logic
 	if err := s.svc.Register(user); err != nil {
-		return nil, errors.Wrap(err, "failed to register user")
+		return nil, fmt.Errorf("failed to register user: %v", err)
 	}
 
 	return &pb.CreateUserResponse{
@@ -52,12 +57,13 @@ func (s *Server) Register(ctx context.Context, req *pb.CreateUserRequest) (*pb.C
 func (s *Server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	user, err := s.svc.Login(req.Email, req.Password)
 	if err != nil {
-		return nil, errors.Wrap(err, "login failed")
+		return nil, fmt.Errorf("login failed: %v", err)
 	}
 
-	token, err := utils.GenerateJWT(user.ID, "user", []string{"read:profile"}, "testsecret")
+	// Generate JWT token
+	token, err := utils.GenerateJWT(user.ID, "your-secret") // Replace with actual config-based secret
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate token")
+		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
 	return &pb.LoginResponse{
@@ -70,7 +76,7 @@ func (s *Server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResp
 func (s *Server) GetProfile(ctx context.Context, req *pb.GetProfileRequest) (*pb.GetProfileResponse, error) {
 	user, err := s.svc.GetProfile(req.UserId)
 	if err != nil {
-		return nil, errors.Wrap(err, "user not found")
+		return nil, fmt.Errorf("user not found: %v", err)
 	}
 
 	return &pb.GetProfileResponse{

@@ -2,19 +2,15 @@ syntax = "proto3";
 
 package user;
 
+// Ensure the go_package points to the correct location in your project
 option go_package = "./proto;proto";
 
 service UserService {
   rpc Register(CreateUserRequest) returns (CreateUserResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
-
-  // New RPC endpoints
-  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
-  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 }
 
-// Existing messages...
 message CreateUserRequest {
   string username = 1;
   string email = 2;
@@ -46,26 +42,3 @@ message GetProfileResponse {
   string email = 2;
   string preferences = 3;
 }
-
-// New messages for updating user
-message UpdateUserRequest {
-  string userId = 1;
-  string username = 2;
-  string email = 3;
-  string password = 4;
-  string preferences = 5;
-}
-
-message UpdateUserResponse {
-  string userId = 1;
-  string message = 2;
-}
-
-// New message for deleting user
-message DeleteUserRequest {
-  string userId = 1;
-}
-
-message DeleteUserResponse {
-  string message = 1;
-} 

@@ -16,8 +16,6 @@ type UserRepository interface {
 	CreateUser(user *models.User) error
 	GetUserByEmail(email string) (*models.User, error)
 	GetUserByID(id string) (*models.User, error)
-	UpdateUser(user *models.User) error
-	DeleteUser(userID string) error
 }
 
 type userRepository struct {
@@ -56,26 +54,4 @@ func (r *userRepository) GetUserByID(id string) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
-}
-
-func (r *userRepository) UpdateUser(user *models.User) error {
-	err := r.db.Save(user).Error
-	if err != nil {
-		log.Printf("UpdateUser: failed to update user %s, error: %v", user.ID, err)
-		return err
-	}
-	return nil
-}
-
-func (r *userRepository) DeleteUser(userID string) error {
-	result := r.db.Delete(&models.User{}, userID)
-	if result.Error != nil {
-		log.Printf("DeleteUser: failed delete for user %s, error: %v", userID, result.Error)
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		log.Printf("DeleteUser: no user found with ID %s", userID)
-		return gorm.ErrRecordNotFound
-	}
-	return nil
 }
