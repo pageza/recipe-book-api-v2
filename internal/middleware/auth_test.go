@@ -14,7 +14,15 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
+// init sets the global logger once at package initialization.
+func init() {
+	middleware.Log = zap.NewNop()
+}
+
 func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
+	// Ensure the global logger is set before running the test.
+	middleware.Log = zap.NewNop()
+
 	secret := "testsecret"
 	token, err := utils.GenerateJWT("test-user-id", secret)
 	assert.NoError(t, err)
@@ -26,7 +34,7 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+token)
 	c.Request = req
 
-	// Invoke JWTAuth middleware.
+	// Invoke the JWTAuth middleware.
 	middleware.JWTAuth(secret)(c)
 
 	// Check that userID was set in the context.
@@ -36,6 +44,8 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 }
 
 func TestJWTAuthMiddleware_MissingHeader(t *testing.T) {
+	middleware.Log = zap.NewNop()
+
 	secret := "testsecret"
 
 	gin.SetMode(gin.TestMode)
@@ -54,6 +64,8 @@ func TestJWTAuthMiddleware_MissingHeader(t *testing.T) {
 }
 
 func TestJWTAuthMiddleware_InvalidPrefix(t *testing.T) {
+	middleware.Log = zap.NewNop()
+
 	secret := "testsecret"
 	token, err := utils.GenerateJWT("test-user-id", secret)
 	assert.NoError(t, err)
@@ -74,6 +86,8 @@ func TestJWTAuthMiddleware_InvalidPrefix(t *testing.T) {
 }
 
 func TestJWTAuthMiddleware_InvalidToken(t *testing.T) {
+	middleware.Log = zap.NewNop()
+
 	secret := "testsecret"
 	invalidToken := "this-is-not-a-valid-token"
 
@@ -96,11 +110,9 @@ func TestLoggerMiddleware_Output(t *testing.T) {
 	core, observedLogs := observer.New(zap.DebugLevel)
 	testLogger := zap.New(core)
 
-	// Override the global logger for tests.
-	// Assuming your middleware imports the logger from "github.com/pageza/recipe-book-api-v2/pkg/logger"
+	// Override the global logger for this test.
 	middleware.Log = testLogger
 
-	// Set Gin into test mode.
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	// Attach the Logger middleware.
@@ -117,7 +129,7 @@ func TestLoggerMiddleware_Output(t *testing.T) {
 	// Verify that at least one log entry contains our expected message.
 	found := false
 	for _, entry := range observedLogs.All() {
-		if strings.Contains(entry.Message, "Logger middleware") {
+		if strings.Contains(entry.Message, "HTTP Request") {
 			found = true
 			break
 		}
