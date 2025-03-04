@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
 	_ "github.com/pageza/recipe-book-api-v2/docs"
 	"github.com/pageza/recipe-book-api-v2/internal/config"
@@ -12,6 +10,7 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/routes/publicroutes"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 )
 
 // NewRouter initializes the Gin engine, sets up routes, and returns the router.
@@ -32,6 +31,6 @@ func NewRouter(cfg *config.Config, h *handlers.Handlers) *gin.Engine {
 	// Serve the Swagger UI at /swagger/index.html
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	log.Println("Router routes registered")
+	zap.L().Info("Router routes registered")
 	return router
 }

@@ -6,7 +6,7 @@ All Rights Reserved.
 package repository
 
 import (
-	"log"
+	"go.uber.org/zap"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"gorm.io/gorm"
@@ -25,7 +25,7 @@ type userRepository struct {
 func NewUserRepository(db *gorm.DB) UserRepository {
 	// Migrate the schema; in production, use migration scripts.
 	if err := db.AutoMigrate(&models.User{}); err != nil {
-		log.Printf("DEBUG: AutoMigrate error: %v", err)
+		zap.L().Warn("AutoMigrate error", zap.Error(err))
 	}
 	return &userRepository{db: db}
 }

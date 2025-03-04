@@ -2,10 +2,10 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // HealthHandler handles the healthcheck endpoint.
@@ -17,13 +17,13 @@ import (
 // @Success 200 {string} string "OK"
 // @Router /healthcheck [get]
 func HealthHandler(c *gin.Context) {
-	log.Println("[Healthcheck] Received request for /healthcheck from:", c.ClientIP())
-	// Log headers (optional)
+	zap.L().Info("[Healthcheck] Received request", zap.String("client_ip", c.ClientIP()))
+	// (Optional) log request headers
 	for key, values := range c.Request.Header {
 		for _, value := range values {
-			log.Printf("[Healthcheck] Header: %s = %s", key, value)
+			zap.L().Debug("[Healthcheck] Header", zap.String("key", key), zap.String("value", value))
 		}
 	}
 	c.String(http.StatusOK, "OK")
-	log.Println("[Healthcheck] Responded with OK")
+	zap.L().Info("[Healthcheck] Responded with OK")
 }

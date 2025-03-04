@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"log"
+	"go.uber.org/zap"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"gorm.io/gorm"
@@ -19,7 +19,7 @@ func NewNotificationRepository(db *gorm.DB) *NotificationRepository {
 // SaveNotification stores a notification in the database (Placeholder Mode)
 func (r *NotificationRepository) SaveNotification(userID, message string) error {
 	if r.db == nil {
-		log.Printf("[Placeholder] Storing notification for user %s: %s", userID, message)
+		zap.L().Info("[Placeholder] Storing notification for user", zap.String("userID", userID), zap.String("message", message))
 		return nil
 	}
 
@@ -34,6 +34,6 @@ func (r *NotificationRepository) SaveNotification(userID, message string) error 
 		return err
 	}
 
-	log.Printf("Notification stored for user %s: %s", userID, message)
+	zap.L().Info("Notification stored for user", zap.String("userID", userID), zap.String("message", message))
 	return nil
 }

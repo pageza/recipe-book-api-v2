@@ -3,7 +3,8 @@ package notification
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"go.uber.org/zap"
 
 	"github.com/pageza/recipe-book-api-v2/internal/service"
 	pb "github.com/pageza/recipe-book-api-v2/proto/proto"
@@ -27,7 +28,7 @@ func (s *Server) SendNotification(ctx context.Context, req *pb.SendNotificationR
 		return nil, fmt.Errorf("failed to send notification: %v", err)
 	}
 
-	log.Println("Notification sent successfully")
+	zap.L().Info("Notification sent successfully")
 
 	return &pb.SendNotificationResponse{
 		Status: "Notification sent successfully",

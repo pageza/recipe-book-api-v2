@@ -7,7 +7,8 @@ package service
 
 import (
 	"errors"
-	"log"
+
+	"go.uber.org/zap"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
@@ -47,14 +48,14 @@ func (s *userService) Register(user *models.User) error {
 	}
 
 	if existing, _ := s.repo.GetUserByEmail(user.Email); existing != nil {
-		log.Printf("Register: duplicate registration attempted for email: %s", user.Email)
+		zap.L().Warn("Register: duplicate registration attempted", zap.String("email", user.Email))
 		return ErrUserAlreadyExists
 	}
 	err := s.repo.CreateUser(user)
 	if err != nil {
-		log.Printf("Register: failed to create user (%s): %v", user.Email, err)
+		zap.L().Error("Register: failed to create user", zap.String("email", user.Email), zap.Error(err))
 	} else {
-		log.Printf("Register: user (%s) registered successfully", user.Email)
+		zap.L().Info("Register: user registered successfully", zap.String("email", user.Email))
 	}
 	return err
 }
@@ -65,14 +66,14 @@ func (s *userService) Login(email, password string) (*models.User, error) {
 
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
-		log.Printf("Login: user with email (%s) not found: %v", email, err)
+		zap.L().Warn("Login: user with email not found", zap.String("email", email), zap.Error(err))
 		return nil, ErrUserNotFound
 	}
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
-		log.Printf("Login: invalid credentials for email: %s", email)
+		zap.L().Warn("Login: invalid credentials for email", zap.String("email", email))
 		return nil, ErrInvalidCredentials
 	}
-	log.Printf("Login: user (%s) logged in successfully", email)
+	zap.L().Info("Login: user logged in successfully", zap.String("email", email))
 	return user, nil
 }
 
@@ -80,9 +81,9 @@ func (s *userService) Login(email, password string) (*models.User, error) {
 func (s *userService) GetProfile(userID string) (*models.User, error) {
 	user, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		log.Printf("GetProfile: user with ID (%s) not found: %v", userID, err)
+		zap.L().Warn("GetProfile: user with ID not found", zap.String("userID", userID), zap.Error(err))
 		return nil, ErrUserNotFound
 	}
-	log.Printf("GetProfile: retrieved profile for user ID: %s", userID)
+	zap.L().Info("GetProfile: retrieved profile for user ID", zap.String("userID", userID))
 	return user, nil
 }

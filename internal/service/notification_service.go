@@ -1,7 +1,7 @@
 package service
 
 import (
-	"log"
+	"go.uber.org/zap"
 
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 )
@@ -18,10 +18,10 @@ func NewNotificationService(repo *repository.NotificationRepository, storeEnable
 
 // SendNotification either logs or stores the notification
 func (s *NotificationService) SendNotification(userID, message string) error {
-	log.Printf("Sending notification to user %s: %s", userID, message)
+	zap.L().Info("Sending notification", zap.String("userID", userID), zap.String("message", message))
 
 	if s.storeEnabled {
-		log.Println("Storing notification in DB")
+		zap.L().Info("Storing notification in DB")
 		return s.repo.SaveNotification(userID, message)
 	}
 
