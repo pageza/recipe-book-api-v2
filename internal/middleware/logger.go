@@ -1,46 +1,39 @@
+/*
+Copyright (C) 2025 Your Company
+All Rights Reserved.
+*/
+
 package middleware
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-// Log is a global logger instance that can be used throughout the codebase.
+// Log is the global Zap logger instance used throughout middleware.
 var Log *zap.Logger
 
-// Init initializes the zap logger. Use zap.NewProduction() in production mode.
-// For now, we are using zap.NewDevelopment() for human-friendly logs.
-func Init() error {
+// InitLogger initializes the global Zap logger.
+func InitLogger() error {
 	var err error
-	Log, err = zap.NewDevelopment()
+	Log, err = zap.NewDevelopment() // Replace with zap.NewProduction() in production.
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Sync flushes any buffered log entries.
-func Sync() error {
+// SyncLogger flushes any buffered log entries.
+func SyncLogger() error {
 	return Log.Sync()
 }
 
-// Logger returns a Gin middleware that logs HTTP requests using zap.
+// Logger logs HTTP requests using the global Zap logger.
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		startTime := time.Now()
-
-		// Process request.
-		c.Next()
-
-		duration := time.Since(startTime)
-		zap.L().Info("Incoming request",
+		Log.Debug("HTTP Request",
 			zap.String("method", c.Request.Method),
-			zap.String("path", c.Request.URL.Path),
-			zap.Int("status", c.Writer.Status()),
-			zap.Duration("duration", duration),
-			zap.String("client_ip", c.ClientIP()),
-		)
+			zap.String("path", c.Request.URL.Path))
+		c.Next()
 	}
 }

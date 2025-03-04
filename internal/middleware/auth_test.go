@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/middleware"
-	logger "github.com/pageza/recipe-book-api-v2/internal/middleware"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -99,7 +98,7 @@ func TestLoggerMiddleware_Output(t *testing.T) {
 
 	// Override the global logger for tests.
 	// Assuming your middleware imports the logger from "github.com/pageza/recipe-book-api-v2/pkg/logger"
-	logger.Log = testLogger
+	middleware.Log = testLogger
 
 	// Set Gin into test mode.
 	gin.SetMode(gin.TestMode)
