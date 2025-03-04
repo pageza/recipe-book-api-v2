@@ -5,18 +5,36 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
 	userhandler "github.com/pageza/recipe-book-api-v2/internal/handlers/users"
+	"github.com/pageza/recipe-book-api-v2/internal/middleware"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/routes/protectedroutes"
 	"github.com/pageza/recipe-book-api-v2/internal/routes/publicroutes"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	// Initialize the middleware logger to prevent nil dereference in JWTAuth
+	err := middleware.InitLogger()
+	if err != nil {
+		panic(err)
+	}
+
+	// Also replace the zap global logger if needed elsewhere
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	zap.ReplaceGlobals(logger)
+}
 
 // dummyService is a minimal implementation of service.UserService for router testing.
 type dummyService struct{}
@@ -66,6 +84,10 @@ func setupRouter() *gin.Engine {
 	protectedroutes.Register(router, cfg, newDummyHandlers())
 
 	return router
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
 }
 
 func TestPublicRoutes(t *testing.T) {

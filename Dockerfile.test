@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     build-essential \
+    netcat-openbsd \
  && rm -rf /var/lib/apt/lists/*
 
 # Download and install Go 1.24
@@ -25,4 +26,4 @@ RUN go mod download
 COPY . ./
 
 # Tests are run by Docker Compose "command"
-CMD ["echo", "Ready to run tests"] 
+CMD ["/bin/sh", "-c", "until nc -z grpc-server 50051; do echo waiting for grpc-server; sleep 2; done; go test ./... -v"] 

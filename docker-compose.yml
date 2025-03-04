@@ -1,4 +1,6 @@
 # docker-compose.yml
+version: '3.8'
+
 services:
   postgres:
     image: postgres:14
@@ -59,14 +61,37 @@ services:
       - migrate
 
   grpc-server:
-    build: .
-    command: ["go", "run", "cmd/grpc-server/main.go"]
+     build: .
+     command: ["go", "run", "cmd/grpc-server/main.go"]
+     networks:
+       - backend
+     ports:
+       - "50051:50051"
+     environment:
+       - DB_HOST=postgres
+       - DB_PORT=5432
+       - DB_USER=postgres
+       - DB_PASSWORD=postgres
+       - DB_NAME=recipe_db
+       - JWT_SECRET=your_jwt_secret
+     depends_on:
+       - postgres
+       - migrate
+     healthcheck:
+       test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+       interval: 10s
+       timeout: 5s
+       retries: 5
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      - postgres
+      - grpc-server
     networks:
       - backend
-    ports:
-      - "50051:50051"
-      - "50052:50052"
-      - "50053:50053"
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -74,13 +99,14 @@ services:
       - DB_PASSWORD=postgres
       - DB_NAME=recipe_db
       - JWT_SECRET=your_jwt_secret
-    depends_on:
-      - postgres
-      - migrate
+      - GRPC_SERVER_ADDRESS=grpc-server:50051
+      - GRPC_SERVER_HOST=grpc-server:50051
+      - GRPC_DIAL_ADDRESS=grpc-server:50051
+    command: ["/bin/sh", "-c", "until nc -z grpc-server 50051; do echo waiting for grpc-server; sleep 2; done; go test ./... -v"]
+
+volumes:
+  pgdata:
 
 networks:
   backend:
     external: true
-
-volumes:
-  pgdata:

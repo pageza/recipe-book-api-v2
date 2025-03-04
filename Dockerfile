@@ -6,12 +6,13 @@ FROM ubuntu:22.04
 # Set noninteractive mode for apt-get to avoid prompts during build
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install required packages
+# Install required packages, including netcat-openbsd for the healthcheck
 RUN apt-get update && apt-get install -y \
     curl \
     git \
     ca-certificates \
     build-essential \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go 1.24.0 (the latest stable version per your instruction)
