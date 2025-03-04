@@ -3,13 +3,15 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
+	"go.uber.org/zap"
 )
 
-// RecipeService defines the interface for recipe operations.
 // RecipeService defines the interface for recipe operations.
 type RecipeService interface {
 	CreateRecipe(recipe *models.Recipe) error
@@ -23,6 +25,7 @@ type RecipeService interface {
 	GetRecipeByQuery(query string) (*models.Recipe, error)
 	// QueryRecipes returns a list of recipes matching the query.
 	QueryRecipes(query string) (*models.RecipeQueryResponse, error)
+	ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error)
 }
 
 // recipeService implements RecipeService.
@@ -36,7 +39,6 @@ func NewRecipeService(repo repository.RecipeRepository) RecipeService {
 }
 
 // CreateRecipe adds a new recipe to the database.
-
 func (s *recipeService) CreateRecipe(recipe *models.Recipe) error {
 	if recipe.Title == "" {
 		return errors.New("recipe title cannot be empty")
@@ -63,20 +65,87 @@ func (s *recipeService) GetAllRecipes() ([]*models.Recipe, error) {
 }
 
 // GetRecipeByQuery returns a recipe based on the query string.
-// For now, this is a stub that returns an error to indicate it is not implemented.
+// Stub implementation; full query logic to be implemented later.
 func (s *recipeService) GetRecipeByQuery(query string) (*models.Recipe, error) {
-	// TODO: Implement query logic using your RAG system.
 	return nil, errors.New("query recipe not implemented")
 }
 
 // QueryRecipes returns a response containing recipes matching the query.
 func (s *recipeService) QueryRecipes(query string) (*models.RecipeQueryResponse, error) {
-	// For now, simply return all recipes.
 	recipes, err := s.ListRecipes()
 	if err != nil {
 		return nil, err
 	}
 	return &models.RecipeQueryResponse{Recipes: recipes}, nil
+}
+
+// ResolveRecipeQuery orchestrates the full recipe retrieval flow.
+func (s *recipeService) ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error) {
+	// 1. Retrieve all recipes from PostgreSQL.
+	recipes, err := s.ListRecipes()
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Perform a simple substring match to find a recipe.
+	var matchedRecipe *models.Recipe
+	qLower := strings.ToLower(query)
+	for _, r := range recipes {
+		if strings.Contains(strings.ToLower(r.Title), qLower) ||
+			strings.Contains(strings.ToLower(r.Ingredients), qLower) ||
+			strings.Contains(strings.ToLower(r.Steps), qLower) {
+			matchedRecipe = r
+			break
+		}
+	}
+
+	// 3a. If a matching recipe is found, return it.
+	if matchedRecipe != nil {
+		return &models.RecipeQueryResponse{
+			Recipes: []*models.Recipe{matchedRecipe},
+		}, nil
+	}
+
+	// 3b. If no match is found, generate a new recipe via AI (stubbed).
+	newRecipe, err := s.generateRecipeFromQuery(query)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Persist the newly generated recipe in PostgreSQL.
+	if err := s.CreateRecipe(newRecipe); err != nil {
+		return nil, err
+	}
+
+	// 5. Update the vector embedding (placeholder for future PGVector integration).
+	if err := s.updateRecipeVectorEmbedding(newRecipe); err != nil {
+		zap.L().Warn("Vector DB update failed", zap.String("recipeID", newRecipe.ID), zap.Error(err))
+	}
+
+	// 6. Return the newly generated recipe.
+	return &models.RecipeQueryResponse{
+		Recipes: []*models.Recipe{newRecipe},
+	}, nil
+}
+
+// generateRecipeFromQuery is a stub simulating an AI service call to create a new recipe.
+func (s *recipeService) generateRecipeFromQuery(query string) (*models.Recipe, error) {
+	newID := uuid.New().String()
+	return &models.Recipe{
+		ID:                newID,
+		Title:             fmt.Sprintf("%s - Generated Recipe", query),
+		Ingredients:       "[]",
+		Steps:             "[]",
+		NutritionalInfo:   "{}",
+		AllergyDisclaimer: "",
+		Appliances:        "[]",
+	}, nil
+}
+
+// updateRecipeVectorEmbedding is a placeholder for future vector DB integration.
+func (s *recipeService) updateRecipeVectorEmbedding(recipe *models.Recipe) error {
+	zap.L().Info("Vector embedding update for recipe (stub)", zap.String("recipeID", recipe.ID))
+	return nil
 }
 
 // Dummy helper to generate an ID.

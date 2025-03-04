@@ -7,10 +7,10 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 )
 
-// RecipeService defines the interface for querying recipes.
+// RecipeService defines the interface for recipe operations.
 type RecipeService interface {
-	// QueryRecipes finds a recipe (and possible alternatives) based on the given query.
-	QueryRecipes(query string) (*models.RecipeQueryResponse, error)
+	// ResolveRecipeQuery processes the complete flow (lookup, fallback, generate)
+	ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error)
 }
 
 // RecipeHandler handles HTTP requests related to recipes.
@@ -24,7 +24,7 @@ func NewRecipeHandler(svc RecipeService) *RecipeHandler {
 }
 
 // @Summary Query Recipes
-// @Description Queries recipes matching the search criteria.
+// @Description Queries recipes matching the search criteria, and creates one if needed.
 // @Tags Recipes
 // @Accept  json
 // @Produce json
@@ -46,7 +46,7 @@ func (h *RecipeHandler) Query(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.QueryRecipes(payload.Query)
+	resp, err := h.service.ResolveRecipeQuery(payload.Query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

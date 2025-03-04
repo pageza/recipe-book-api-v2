@@ -8,15 +8,16 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
 	pb "github.com/pageza/recipe-book-api-v2/proto/proto"
+	"go.uber.org/zap"
 )
 
-// Server implements the gRPC RecipeService.
+// Server implements the RecipeService defined in the proto file.
 type Server struct {
-	pb.UnimplementedRecipeServiceServer
 	svc service.RecipeService
+	pb.UnimplementedRecipeServiceServer
 }
 
-// NewServer creates a new Recipe gRPC server.
+// NewServer creates a new gRPC recipe server.
 func NewServer(svc service.RecipeService) *Server {
 	return &Server{svc: svc}
 }
@@ -91,29 +92,43 @@ func (s *Server) ListRecipes(ctx context.Context, req *pb.ListRecipesRequest) (*
 	}, nil
 }
 
-// QueryRecipe implements the QueryRecipe RPC.
-// This is a placeholder; you'll need to implement your RAG logic here later.
+// QueryRecipe processes a recipe query using the full resolution flow.
 func (s *Server) QueryRecipe(ctx context.Context, req *pb.RecipeQueryRequest) (*pb.RecipeQueryResponse, error) {
-	// For now, we'll simulate a query by retrieving the recipe by an ID that matches the query string.
-	recipe, err := s.svc.GetRecipeByQuery(req.Query)
+	zap.L().Info("Received QueryRecipe request", zap.String("query", req.Query))
+
+	// Use the full resolution logic from the service layer.
+	queryResp, err := s.svc.ResolveRecipeQuery(req.Query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query recipe: %v", err)
+		zap.L().Warn("Failed to resolve recipe query", zap.Error(err))
+		return nil, fmt.Errorf("failed to resolve recipe query: %v", err)
 	}
 
-	// In a full implementation, you would also generate alternative suggestions.
-	resp := &pb.RecipeQueryResponse{
-		PrimaryRecipe: &pb.GetRecipeResponse{
-			RecipeId:          recipe.ID,
-			Title:             recipe.Title,
-			Ingredients:       recipe.Ingredients,
-			Steps:             recipe.Steps,
-			NutritionalInfo:   recipe.NutritionalInfo,
-			AllergyDisclaimer: recipe.AllergyDisclaimer,
-			Appliances:        recipe.Appliances,
-			CreatedAt:         recipe.CreatedAt.Unix(),
-			UpdatedAt:         recipe.UpdatedAt.Unix(),
-		},
-		// Alternative recipes can be added here.
+	if len(queryResp.Recipes) == 0 {
+		return nil, fmt.Errorf("no recipe found")
 	}
+
+	// Map the first returned recipe as the primary recipe.
+	primary := mapRecipeToProto(queryResp.Recipes[0])
+
+	resp := &pb.RecipeQueryResponse{
+		PrimaryRecipe:      primary,
+		AlternativeRecipes: []*pb.GetRecipeResponse{}, // Placeholder for alternatives.
+	}
+
 	return resp, nil
+}
+
+// mapRecipeToProto converts a Recipe model into its corresponding gRPC message.
+func mapRecipeToProto(r *models.Recipe) *pb.GetRecipeResponse {
+	return &pb.GetRecipeResponse{
+		RecipeId:          r.ID,
+		Title:             r.Title,
+		Ingredients:       r.Ingredients,
+		Steps:             r.Steps,
+		NutritionalInfo:   r.NutritionalInfo,
+		AllergyDisclaimer: r.AllergyDisclaimer,
+		Appliances:        r.Appliances,
+		CreatedAt:         r.CreatedAt.Unix(),
+		UpdatedAt:         r.UpdatedAt.Unix(),
+	}
 }

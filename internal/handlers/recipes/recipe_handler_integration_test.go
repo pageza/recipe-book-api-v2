@@ -1,13 +1,19 @@
 package recipes_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository" // make sure repository package is imported
 	"github.com/pageza/recipe-book-api-v2/proto/proto"         // generated proto package for recipes
@@ -130,4 +136,60 @@ func TestIntegration_QueryRecipe(t *testing.T) {
 	assert.NoError(t, err, "Expected no error during recipe query simulation")
 	// We simulate the RecipeQueryResponse here by asserting that we got the expected title.
 	assert.Equal(t, uniqueTitle, getResp.Title, "Queried recipe title should match the created recipe")
+}
+
+// dummyRecipeService implements the minimal RecipeService interface needed for testing.
+type dummyRecipeService struct{}
+
+// ResolveRecipeQuery returns a fixed dummy recipe response.
+func (d *dummyRecipeService) ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error) {
+	return &models.RecipeQueryResponse{
+		Recipes: []*models.Recipe{
+			{
+				ID:                "dummy-id",
+				Title:             query + " - Dummy Generated Recipe",
+				Ingredients:       `["dummy ingredient"]`,
+				Steps:             `["dummy step"]`,
+				NutritionalInfo:   "{}",
+				AllergyDisclaimer: "none",
+				Appliances:        "[]",
+			},
+		},
+	}, nil
+}
+
+func TestQueryRecipe(t *testing.T) {
+	// Set Gin to test mode.
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+
+	// Create a dummy service and attach it to the handler.
+	dummySvc := &dummyRecipeService{}
+	handler := recipes.NewRecipeHandler(dummySvc)
+
+	// Register the /query endpoint.
+	router.POST("/query", handler.Query)
+
+	// Prepare a test request.
+	reqBody := `{"query": "Test Recipe"}`
+	req, err := http.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute the request.
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Assert the response status code.
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Parse the response.
+	var resp models.RecipeQueryResponse
+	err = json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+
+	// Verify the response.
+	assert.Len(t, resp.Recipes, 1, "Expected a single recipe in the response")
+	assert.Equal(t, "dummy-id", resp.Recipes[0].ID, "Recipe ID should match the dummy one")
+	assert.Contains(t, resp.Recipes[0].Title, "Test Recipe", "Title should include the query string")
 }
