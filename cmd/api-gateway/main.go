@@ -20,6 +20,7 @@ All Rights Reserved.
 package main
 
 import (
+	"log"
 	"time"
 
 	"go.uber.org/zap"
@@ -29,18 +30,35 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/users"
+	"github.com/pageza/recipe-book-api-v2/internal/middleware"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
 	"github.com/pageza/recipe-book-api-v2/internal/routes"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
 )
 
 func main() {
+	// Initialize the global logger for both main and middleware.
+	if err := middleware.InitLogger(); err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
+	}
+	// Make sure Zap's global logger is the same as the one in middleware.
+	zap.ReplaceGlobals(middleware.Log)
+	defer func() {
+		if err := middleware.SyncLogger(); err != nil {
+			log.Printf("failed to sync logger: %v", err)
+		}
+	}()
+
 	// Load configuration.
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		zap.L().Fatal("Failed to load config", zap.Error(err))
 	}
-	zap.L().Info("Configuration loaded", zap.String("PORT", cfg.Port), zap.String("DB_HOST", cfg.DBHost), zap.String("DB_NAME", cfg.DBName))
+	zap.L().Info("Configuration loaded",
+		zap.String("PORT", cfg.Port),
+		zap.String("DB_HOST", cfg.DBHost),
+		zap.String("DB_NAME", cfg.DBName),
+	)
 
 	// Connect to the database.
 	db, err := config.ConnectDatabase(cfg)
