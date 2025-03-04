@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,8 +8,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/middleware"
+	logger "github.com/pageza/recipe-book-api-v2/internal/middleware"
 	"github.com/pageza/recipe-book-api-v2/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
@@ -91,26 +93,37 @@ func TestJWTAuthMiddleware_InvalidToken(t *testing.T) {
 }
 
 func TestLoggerMiddleware_Output(t *testing.T) {
-	// Capture the logger output by redirecting Gin's default writer.
-	var buf bytes.Buffer
-	gin.DefaultWriter = &buf
-	// Reset default writer after test.
-	defer func() {
-		gin.DefaultWriter = nil
-	}()
+	// Create a test observer capturing debug-level logs.
+	core, observedLogs := observer.New(zap.DebugLevel)
+	testLogger := zap.New(core)
 
+	// Override the global logger for tests.
+	// Assuming your middleware imports the logger from "github.com/pageza/recipe-book-api-v2/pkg/logger"
+	logger.Log = testLogger
+
+	// Set Gin into test mode.
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
+	// Attach the Logger middleware.
 	router.Use(middleware.Logger())
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
 
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	// Perform a test request.
+	req := httptest.NewRequest("GET", "/test", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
 
-	// Verify that the logger output contains the expected debug message.
-	output := buf.String()
-	assert.True(t, strings.Contains(output, "DEBUG: Logger - request method:"), "Expected logger output to contain debug message")
+	// Verify that at least one log entry contains our expected message.
+	found := false
+	for _, entry := range observedLogs.All() {
+		if strings.Contains(entry.Message, "Logger middleware") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected logger output to contain debug message, got logs:\n%v", observedLogs.All())
+	}
 }
