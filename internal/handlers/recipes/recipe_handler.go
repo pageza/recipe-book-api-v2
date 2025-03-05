@@ -11,6 +11,8 @@ import (
 type RecipeService interface {
 	// ResolveRecipeQuery processes the complete flow (lookup, fallback, generate)
 	ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error)
+	CreateRecipe(recipe *models.Recipe) error
+	// Additional service methods can be defined here.
 }
 
 // RecipeHandler handles HTTP requests related to recipes.
@@ -52,4 +54,22 @@ func (h *RecipeHandler) Query(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// Create handles the creation of a new recipe.
+func (h *RecipeHandler) Create(c *gin.Context) {
+	var payload models.Recipe
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if payload.Title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "recipe title is required"})
+		return
+	}
+	if err := h.service.CreateRecipe(&payload); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, payload)
 }

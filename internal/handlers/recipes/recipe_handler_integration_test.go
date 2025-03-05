@@ -138,10 +138,10 @@ func TestIntegration_QueryRecipe(t *testing.T) {
 	assert.Equal(t, uniqueTitle, getResp.Title, "Queried recipe title should match the created recipe")
 }
 
-// dummyRecipeService implements the minimal RecipeService interface needed for testing.
+// dummyRecipeService implements the minimal RecipeService interface for testing.
 type dummyRecipeService struct{}
 
-// ResolveRecipeQuery returns a fixed dummy recipe response.
+// ResolveRecipeQuery returns a dummy recipe response based on the provided query.
 func (d *dummyRecipeService) ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error) {
 	return &models.RecipeQueryResponse{
 		Recipes: []*models.Recipe{
@@ -158,38 +158,72 @@ func (d *dummyRecipeService) ResolveRecipeQuery(query string) (*models.RecipeQue
 	}, nil
 }
 
+// CreateRecipe simulates creating a recipe by assigning a dummy ID.
+func (d *dummyRecipeService) CreateRecipe(recipe *models.Recipe) error {
+	recipe.ID = "dummy-created-id"
+	return nil
+}
+
 func TestQueryRecipe(t *testing.T) {
-	// Set Gin to test mode.
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
-	// Create a dummy service and attach it to the handler.
 	dummySvc := &dummyRecipeService{}
 	handler := recipes.NewRecipeHandler(dummySvc)
 
-	// Register the /query endpoint.
 	router.POST("/query", handler.Query)
 
-	// Prepare a test request.
 	reqBody := `{"query": "Test Recipe"}`
 	req, err := http.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
 	assert.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Execute the request.
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Assert the response status code.
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	// Parse the response.
 	var resp models.RecipeQueryResponse
 	err = json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 
-	// Verify the response.
-	assert.Len(t, resp.Recipes, 1, "Expected a single recipe in the response")
-	assert.Equal(t, "dummy-id", resp.Recipes[0].ID, "Recipe ID should match the dummy one")
-	assert.Contains(t, resp.Recipes[0].Title, "Test Recipe", "Title should include the query string")
+	assert.Len(t, resp.Recipes, 1)
+	assert.Equal(t, "dummy-id", resp.Recipes[0].ID)
+	assert.Contains(t, resp.Recipes[0].Title, "Test Recipe")
+}
+
+func TestCreateRecipe(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+
+	dummySvc := &dummyRecipeService{}
+	handler := recipes.NewRecipeHandler(dummySvc)
+
+	router.POST("/create", handler.Create)
+
+	testRecipe := models.Recipe{
+		Title:             "New Recipe",
+		Ingredients:       `["ingredient1", "ingredient2"]`,
+		Steps:             `["step1", "step2"]`,
+		NutritionalInfo:   "{}",
+		AllergyDisclaimer: "none",
+		Appliances:        "[]",
+	}
+	reqBytes, err := json.Marshal(testRecipe)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "/create", bytes.NewBuffer(reqBytes))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	var createdRecipe models.Recipe
+	err = json.Unmarshal(w.Body.Bytes(), &createdRecipe)
+	assert.NoError(t, err)
+	assert.Equal(t, "dummy-created-id", createdRecipe.ID)
+	assert.Equal(t, "New Recipe", createdRecipe.Title)
 }

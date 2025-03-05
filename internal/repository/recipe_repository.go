@@ -5,36 +5,41 @@ import (
 	"gorm.io/gorm"
 )
 
-// RecipeRepository defines the interface for database operations
+// RecipeRepository defines methods to interact with recipes in the database.
 type RecipeRepository interface {
 	CreateRecipe(recipe *models.Recipe) error
-	GetRecipeByID(recipeID string) (*models.Recipe, error)
+	GetRecipeByID(id string) (*models.Recipe, error)
 	GetAllRecipes() ([]*models.Recipe, error)
 }
 
-// recipeRepository is the struct that implements RecipeRepository
 type recipeRepository struct {
 	db *gorm.DB
 }
 
-// NewRecipeRepository returns an implementation of RecipeRepository
+// NewRecipeRepository creates a new instance of RecipeRepository.
 func NewRecipeRepository(db *gorm.DB) RecipeRepository {
 	return &recipeRepository{db: db}
 }
 
-// Implementing interface methods
+// CreateRecipe inserts a new recipe record in the database.
 func (r *recipeRepository) CreateRecipe(recipe *models.Recipe) error {
 	return r.db.Create(recipe).Error
 }
 
-func (r *recipeRepository) GetRecipeByID(recipeID string) (*models.Recipe, error) {
+// GetRecipeByID retrieves a recipe by its ID.
+func (r *recipeRepository) GetRecipeByID(id string) (*models.Recipe, error) {
 	var recipe models.Recipe
-	err := r.db.First(&recipe, "id = ?", recipeID).Error
-	return &recipe, err
+	if err := r.db.First(&recipe, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &recipe, nil
 }
 
+// GetAllRecipes returns all recipes from the database.
 func (r *recipeRepository) GetAllRecipes() ([]*models.Recipe, error) {
 	var recipes []*models.Recipe
-	err := r.db.Find(&recipes).Error
-	return recipes, err
+	if err := r.db.Find(&recipes).Error; err != nil {
+		return nil, err
+	}
+	return recipes, nil
 }

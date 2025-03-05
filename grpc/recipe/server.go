@@ -4,6 +4,7 @@ package recipe
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
@@ -22,22 +23,58 @@ func NewServer(svc service.RecipeService) *Server {
 	return &Server{svc: svc}
 }
 
-// CreateRecipe implements the CreateRecipe RPC.
+// QueryRecipe processes a recipe query using the full resolution flow.
+func (s *Server) QueryRecipe(ctx context.Context, req *pb.RecipeQueryRequest) (*pb.RecipeQueryResponse, error) {
+	zap.L().Info("Received QueryRecipe request", zap.String("query", req.Query))
+
+	// Use the full resolution logic from the service layer.
+	queryResp, err := s.svc.ResolveRecipeQuery(req.Query)
+	if err != nil {
+		zap.L().Warn("Failed to resolve recipe query", zap.Error(err))
+		return nil, fmt.Errorf("failed to resolve recipe query: %v", err)
+	}
+
+	if len(queryResp.Recipes) == 0 {
+		return nil, fmt.Errorf("no recipe found")
+	}
+
+	// Map the first returned recipe as the primary recipe.
+	primary := mapRecipeToProto(queryResp.Recipes[0])
+
+	resp := &pb.RecipeQueryResponse{
+		PrimaryRecipe:      primary,
+		AlternativeRecipes: []*pb.GetRecipeResponse{}, // Placeholder for alternatives.
+	}
+
+	return resp, nil
+}
+
+// CreateRecipe creates a new recipe using the service layer.
+// It returns the existing proto signature with recipe_id and message fields.
 func (s *Server) CreateRecipe(ctx context.Context, req *pb.CreateRecipeRequest) (*pb.CreateRecipeResponse, error) {
+	zap.L().Info("Received CreateRecipe request", zap.String("title", req.Title))
+
+	// Set the creation and update timestamps.
+	now := time.Now()
+
 	recipe := &models.Recipe{
-		Title:       req.Title,
-		Ingredients: req.Ingredients,
-		Steps:       req.Steps,
-		// For now, these additional fields are not used by the client.
+		Title:             req.Title,
+		Ingredients:       req.Ingredients,
+		Steps:             req.Steps,
 		NutritionalInfo:   req.NutritionalInfo,
 		AllergyDisclaimer: req.AllergyDisclaimer,
 		Appliances:        req.Appliances,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
+	// Persist the new recipe via the service layer.
 	if err := s.svc.CreateRecipe(recipe); err != nil {
+		zap.L().Warn("Failed to create recipe", zap.Error(err))
 		return nil, fmt.Errorf("failed to create recipe: %v", err)
 	}
 
+	// Return the newly created recipe
 	return &pb.CreateRecipeResponse{
 		RecipeId: recipe.ID,
 		Message:  "Recipe created successfully",
@@ -90,32 +127,6 @@ func (s *Server) ListRecipes(ctx context.Context, req *pb.ListRecipesRequest) (*
 	return &pb.ListRecipesResponse{
 		Recipes: protoRecipes,
 	}, nil
-}
-
-// QueryRecipe processes a recipe query using the full resolution flow.
-func (s *Server) QueryRecipe(ctx context.Context, req *pb.RecipeQueryRequest) (*pb.RecipeQueryResponse, error) {
-	zap.L().Info("Received QueryRecipe request", zap.String("query", req.Query))
-
-	// Use the full resolution logic from the service layer.
-	queryResp, err := s.svc.ResolveRecipeQuery(req.Query)
-	if err != nil {
-		zap.L().Warn("Failed to resolve recipe query", zap.Error(err))
-		return nil, fmt.Errorf("failed to resolve recipe query: %v", err)
-	}
-
-	if len(queryResp.Recipes) == 0 {
-		return nil, fmt.Errorf("no recipe found")
-	}
-
-	// Map the first returned recipe as the primary recipe.
-	primary := mapRecipeToProto(queryResp.Recipes[0])
-
-	resp := &pb.RecipeQueryResponse{
-		PrimaryRecipe:      primary,
-		AlternativeRecipes: []*pb.GetRecipeResponse{}, // Placeholder for alternatives.
-	}
-
-	return resp, nil
 }
 
 // mapRecipeToProto converts a Recipe model into its corresponding gRPC message.

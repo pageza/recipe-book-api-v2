@@ -2,16 +2,16 @@ package models
 
 import "time"
 
-// Recipe represents a comprehensive recipe in the system.
+// Recipe represents a cooking recipe in the system.
 // swagger:model Recipe
 type Recipe struct {
-	ID                string `gorm:"primaryKey"`
-	Title             string // The title or name of the recipe.
-	Ingredients       string // JSON string of the detailed ingredient list.
-	Steps             string // JSON string of the step-by-step instructions.
-	NutritionalInfo   string // JSON string containing nutritional breakdown (calories, macros, etc.)
-	AllergyDisclaimer string // Disclaimer text about potential allergy risks.
-	Appliances        string // JSON string of required appliances/cookware.
+	ID                string `gorm:"primaryKey;type:uuid;default:uuid_generate_v4()"`
+	Title             string `gorm:"not null"`
+	Ingredients       string `gorm:"type:text"`
+	Steps             string `gorm:"type:text"`
+	NutritionalInfo   string `gorm:"type:text"`
+	AllergyDisclaimer string `gorm:"type:text"`
+	Appliances        string `gorm:"type:text"`
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	// Additional fields can be added here (e.g., user preferences, history, pantry tracking placeholders)
