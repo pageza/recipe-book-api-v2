@@ -30,6 +30,13 @@ func main() {
 		}
 	}
 
+	// For PostgreSQL, ensure the uuid-ossp extension exists.
+	if db.Dialector.Name() == "postgres" {
+		if err := db.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`).Error; err != nil {
+			log.Fatalf("failed to create uuid-ossp extension: %v", err)
+		}
+	}
+
 	// Run migrations.
 	err = db.AutoMigrate(&models.User{}, &models.Recipe{}, &models.Notification{})
 	if err != nil {
