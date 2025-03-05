@@ -15,15 +15,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
-	"github.com/pageza/recipe-book-api-v2/internal/repository" // make sure repository package is imported
-	"github.com/pageza/recipe-book-api-v2/proto/proto"         // generated proto package for recipes
+	"github.com/pageza/recipe-book-api-v2/internal/repository" // ensure repository package is imported
+	pb "github.com/pageza/recipe-book-api-v2/proto/proto"      // generated proto package for recipes
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
 
 var testDB *gorm.DB // our test DB connection
-var grpcClient proto.RecipeServiceClient
+var grpcClient pb.RecipeServiceClient
 
 // TestMain sets up the test database and migrates the Recipe model before running tests.
 func TestMain(m *testing.M) {
@@ -44,7 +44,6 @@ func TestMain(m *testing.M) {
 	time.Sleep(1 * time.Second)
 
 	// Setup gRPC client connection for integration tests.
-	// For example, using an environment variable or a default address.
 	addr := os.Getenv("GRPC_DIAL_ADDRESS")
 	if addr == "" {
 		addr = "grpc-server:50051" // adjust if needed
@@ -53,7 +52,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to connect to gRPC server: %v", err)
 	}
-	grpcClient = proto.NewRecipeServiceClient(conn)
+	grpcClient = pb.NewRecipeServiceClient(conn)
 
 	// Run tests.
 	code := m.Run()
@@ -65,7 +64,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestIntegration_CreateAndGetRecipe(t *testing.T) {
-	// Read the gRPC server address from the environment, just like in user_handler_integration_test.go.
+	// Read the gRPC server address from the environment.
 	grpcServerAddr := os.Getenv("GRPC_SERVER_ADDR")
 	if grpcServerAddr == "" {
 		grpcServerAddr = "grpc-server:50051"
@@ -75,31 +74,27 @@ func TestIntegration_CreateAndGetRecipe(t *testing.T) {
 	assert.NoError(t, err, "Expected to connect to gRPC server")
 	defer conn.Close()
 
-	client := proto.NewRecipeServiceClient(conn)
+	client := pb.NewRecipeServiceClient(conn)
 
-	// Example: create a new recipe.
+	// Create a new recipe via gRPC.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := client.CreateRecipe(ctx, &proto.CreateRecipeRequest{
+	createResp, err := client.CreateRecipe(ctx, &pb.CreateRecipeRequest{
 		Title:       "Healthy Chicken Salad",
 		Ingredients: `{"items": ["chicken", "lettuce", "tomato", "cucumber"]}`,
 		Steps:       `{"steps": ["Grill chicken", "Chop veggies", "Mix together"]}`,
-		// Note: our new Recipe model has additional fields (NutritionalInfo, AllergyDisclaimer, Appliances)
-		// but the current proto definition doesn't include these.
-		// We assume that later you'll update the proto, so for now these are omitted.
 	})
 	assert.NoError(t, err, "Expected no error during recipe creation")
-	assert.NotEmpty(t, resp.RecipeId, "Expected a non-empty recipeId")
+	assert.NotEmpty(t, createResp.RecipeId, "Expected a non-empty recipeId")
 
 	// Wait briefly for the recipe to be available.
 	time.Sleep(1 * time.Second)
 
 	// Retrieve the recipe via gRPC.
-	getReq := &proto.GetRecipeRequest{
-		RecipeId: resp.RecipeId,
-	}
-	getResp, err := client.GetRecipe(ctx, getReq)
+	getResp, err := client.GetRecipe(ctx, &pb.GetRecipeRequest{
+		RecipeId: createResp.RecipeId,
+	})
 	assert.NoError(t, err, "Expected no error during recipe retrieval")
 	assert.Equal(t, "Healthy Chicken Salad", getResp.Title, "Recipe title should match")
 	assert.Equal(t, `{"items": ["chicken", "lettuce", "tomato", "cucumber"]}`, getResp.Ingredients, "Ingredients should match")
@@ -107,19 +102,15 @@ func TestIntegration_CreateAndGetRecipe(t *testing.T) {
 }
 
 func TestIntegration_ListRecipes(t *testing.T) {
-	// This test assumes that there is at least one recipe in the database from previous tests.
-	listReq := &proto.ListRecipesRequest{}
-	listResp, err := grpcClient.ListRecipes(context.Background(), listReq)
+	listResp, err := grpcClient.ListRecipes(context.Background(), &pb.ListRecipesRequest{})
 	assert.NoError(t, err, "Expected no error during listing recipes")
 	assert.Greater(t, len(listResp.Recipes), 0, "Expected at least one recipe in the list")
 }
 
 func TestIntegration_QueryRecipe(t *testing.T) {
-	// Since the query functionality is part of our application logic (using RAG and so on),
-	// we'll assume that the service layer wraps the proto.GetRecipe functionality for now.
-	// For this test, we simulate a query by first creating a recipe and then querying it.
+	// Simulate a query by first creating a unique recipe.
 	uniqueTitle := "Vegan Delight " + uuid.New().String()
-	createReq := &proto.CreateRecipeRequest{
+	createReq := &pb.CreateRecipeRequest{
 		Title:       uniqueTitle,
 		Ingredients: `{"items": ["tofu", "spinach", "quinoa"]}`,
 		Steps:       `{"steps": ["Cook quinoa", "Sauté tofu", "Mix with spinach"]}`,
@@ -127,22 +118,120 @@ func TestIntegration_QueryRecipe(t *testing.T) {
 	createResp, err := grpcClient.CreateRecipe(context.Background(), createReq)
 	assert.NoError(t, err, "Expected no error during recipe creation for query")
 
-	// Here, we assume that the query returns a primary recipe and alternatives.
-	// For now, we simulate by using GetRecipe.
-	getReq := &proto.GetRecipeRequest{
+	// Here we simulate the query functionality by retrieving the created recipe.
+	getResp, err := grpcClient.GetRecipe(context.Background(), &pb.GetRecipeRequest{
 		RecipeId: createResp.RecipeId,
-	}
-	getResp, err := grpcClient.GetRecipe(context.Background(), getReq)
+	})
 	assert.NoError(t, err, "Expected no error during recipe query simulation")
-	// We simulate the RecipeQueryResponse here by asserting that we got the expected title.
 	assert.Equal(t, uniqueTitle, getResp.Title, "Queried recipe title should match the created recipe")
 }
 
-// dummyRecipeService implements the minimal RecipeService interface for testing.
-type dummyRecipeService struct{}
+// --- HTTP Integration Tests for Recipes ---
 
-// ResolveRecipeQuery returns a dummy recipe response based on the provided query.
+// dummyError is used to simulate errors.
+type dummyError struct {
+	msg string
+}
+
+func (e *dummyError) Error() string {
+	return e.msg
+}
+
+// dummyRecipeService implements RecipeService for GET and LIST endpoint testing.
+type dummyRecipeService struct {
+	recipes map[string]*models.Recipe
+}
+
+func (d *dummyRecipeService) CreateRecipe(recipe *models.Recipe) error {
+	if d.recipes == nil {
+		d.recipes = make(map[string]*models.Recipe)
+	}
+	if recipe.ID == "" {
+		recipe.ID = "dummy-" + recipe.Title
+	}
+	d.recipes[recipe.ID] = recipe
+	return nil
+}
+
+func (d *dummyRecipeService) GetRecipe(recipeID string) (*models.Recipe, error) {
+	if recipe, ok := d.recipes[recipeID]; ok {
+		return recipe, nil
+	}
+	return nil, &dummyError{msg: "recipe not found"}
+}
+
+func (d *dummyRecipeService) ListRecipes() ([]*models.Recipe, error) {
+	var list []*models.Recipe
+	for _, r := range d.recipes {
+		list = append(list, r)
+	}
+	return list, nil
+}
+
 func (d *dummyRecipeService) ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error) {
+	// Not needed for these tests.
+	return nil, nil
+}
+
+// setupRouter initializes a Gin engine using dummyRecipeService for GET and LIST endpoints.
+func setupRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	dummySvc := &dummyRecipeService{
+		recipes: map[string]*models.Recipe{
+			"dummy-Pasta": {
+				ID:                "dummy-Pasta",
+				Title:             "Pasta",
+				Ingredients:       `["pasta", "tomato sauce"]`,
+				Steps:             `["boil pasta", "add sauce"]`,
+				NutritionalInfo:   "{}",
+				AllergyDisclaimer: "",
+				Appliances:        "[]",
+				CreatedAt:         time.Now(),
+				UpdatedAt:         time.Now(),
+			},
+		},
+	}
+	handler := recipes.NewRecipeHandler(dummySvc)
+	router := gin.Default()
+	router.GET("/recipes/:id", handler.Get)
+	router.GET("/recipes", handler.List)
+	return router
+}
+
+func TestGetRecipe(t *testing.T) {
+	router := setupRouter()
+	req, err := http.NewRequest("GET", "/recipes/dummy-Pasta", nil)
+	assert.NoError(t, err)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var recipe models.Recipe
+	err = json.Unmarshal(w.Body.Bytes(), &recipe)
+	assert.NoError(t, err)
+	assert.Equal(t, "dummy-Pasta", recipe.ID)
+	assert.Equal(t, "Pasta", recipe.Title)
+}
+
+func TestListRecipes(t *testing.T) {
+	router := setupRouter()
+	req, err := http.NewRequest("GET", "/recipes", nil)
+	assert.NoError(t, err)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var recipes []models.Recipe
+	err = json.Unmarshal(w.Body.Bytes(), &recipes)
+	assert.NoError(t, err)
+	// Expect exactly one recipe seeded in the dummy service.
+	assert.Len(t, recipes, 1)
+}
+
+// dummyRecipeServiceSimple implements a minimal RecipeService for POST Query and Create endpoint testing.
+type dummyRecipeServiceSimple struct{}
+
+func (d *dummyRecipeServiceSimple) ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error) {
 	return &models.RecipeQueryResponse{
 		Recipes: []*models.Recipe{
 			{
@@ -153,22 +242,31 @@ func (d *dummyRecipeService) ResolveRecipeQuery(query string) (*models.RecipeQue
 				NutritionalInfo:   "{}",
 				AllergyDisclaimer: "none",
 				Appliances:        "[]",
+				CreatedAt:         time.Now(),
+				UpdatedAt:         time.Now(),
 			},
 		},
 	}, nil
 }
 
-// CreateRecipe simulates creating a recipe by assigning a dummy ID.
-func (d *dummyRecipeService) CreateRecipe(recipe *models.Recipe) error {
+func (d *dummyRecipeServiceSimple) CreateRecipe(recipe *models.Recipe) error {
 	recipe.ID = "dummy-created-id"
 	return nil
+}
+
+func (d *dummyRecipeServiceSimple) GetRecipe(recipeID string) (*models.Recipe, error) {
+	return nil, nil
+}
+
+func (d *dummyRecipeServiceSimple) ListRecipes() ([]*models.Recipe, error) {
+	return nil, nil
 }
 
 func TestQueryRecipe(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
-	dummySvc := &dummyRecipeService{}
+	dummySvc := &dummyRecipeServiceSimple{}
 	handler := recipes.NewRecipeHandler(dummySvc)
 
 	router.POST("/query", handler.Query)
@@ -196,7 +294,7 @@ func TestCreateRecipe(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
-	dummySvc := &dummyRecipeService{}
+	dummySvc := &dummyRecipeServiceSimple{}
 	handler := recipes.NewRecipeHandler(dummySvc)
 
 	router.POST("/create", handler.Create)
@@ -208,6 +306,8 @@ func TestCreateRecipe(t *testing.T) {
 		NutritionalInfo:   "{}",
 		AllergyDisclaimer: "none",
 		Appliances:        "[]",
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 	reqBytes, err := json.Marshal(testRecipe)
 	assert.NoError(t, err)

@@ -9,10 +9,21 @@ import (
 
 // Register registers protected routes and accepts both config and handlers.
 func Register(router *gin.Engine, cfg *config.Config, h *handlers.Handlers) {
+	// Group protected routes with JWT authentication middleware.
 	protected := router.Group("/")
 	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
 		protected.GET("/profile", h.User.Profile)
-		// Add more protected routes here.
+
+		// Register recipe endpoints under the protected routes.
+		recipes := protected.Group("api/v1/recipes")
+		{
+			recipes.POST("/query", h.Recipe.Query)
+			recipes.POST("/", h.Recipe.Create)
+			recipes.GET("/:id", h.Recipe.Get)
+			recipes.GET("/", h.Recipe.List)
+		}
+
+		// Add additional protected routes as needed.
 	}
 }

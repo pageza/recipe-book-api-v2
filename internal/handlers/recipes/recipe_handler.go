@@ -9,9 +9,10 @@ import (
 
 // RecipeService defines the interface for recipe operations.
 type RecipeService interface {
-	// ResolveRecipeQuery processes the complete flow (lookup, fallback, generate)
-	ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error)
 	CreateRecipe(recipe *models.Recipe) error
+	GetRecipe(recipeID string) (*models.Recipe, error)
+	ListRecipes() ([]*models.Recipe, error)
+	ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error)
 	// Additional service methods can be defined here.
 }
 
@@ -72,4 +73,25 @@ func (h *RecipeHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, payload)
+}
+
+// Get retrieves a recipe by its ID.
+func (h *RecipeHandler) Get(c *gin.Context) {
+	recipeID := c.Param("id")
+	recipe, err := h.service.GetRecipe(recipeID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "recipe not found"})
+		return
+	}
+	c.JSON(http.StatusOK, recipe)
+}
+
+// List returns all recipes.
+func (h *RecipeHandler) List(c *gin.Context) {
+	recipes, err := h.service.ListRecipes()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list recipes"})
+		return
+	}
+	c.JSON(http.StatusOK, recipes)
 }
