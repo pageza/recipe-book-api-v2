@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
+	"github.com/pageza/recipe-book-api-v2/internal/service"
 )
 
 // RecipeService defines the interface for recipe operations.
@@ -49,12 +50,12 @@ func (h *RecipeHandler) Query(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.ResolveRecipeQuery(payload.Query)
+	resolverResp, err := service.ResolveRecipeQuery(payload.Query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, resolverResp)
 }
 
 // Create handles the creation of a new recipe.
