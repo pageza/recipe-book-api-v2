@@ -4,7 +4,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
@@ -86,45 +85,14 @@ func (s *recipeService) QueryRecipes(query string) (*models.RecipeQueryResponse,
 	return &models.RecipeQueryResponse{Recipes: recipes}, nil
 }
 
-// ResolveRecipeQuery handles a query and returns a matching recipe or generates one.
+// ResolveRecipeQuery delegates the resolution task to the external resolver microservice.
 func (s *recipeService) ResolveRecipeQuery(query string) (*models.RecipeQueryResponse, error) {
-	recipes, err := s.repo.GetAllRecipes()
+	resolution, err := CallResolver(query)
 	if err != nil {
 		return nil, err
 	}
-
-	var matched *models.Recipe
-	lowerQuery := strings.ToLower(query)
-	for _, r := range recipes {
-		if strings.Contains(strings.ToLower(r.Title), lowerQuery) ||
-			strings.Contains(strings.ToLower(r.Ingredients), lowerQuery) ||
-			strings.Contains(strings.ToLower(r.Steps), lowerQuery) {
-			matched = r
-			break
-		}
-	}
-
-	if matched != nil {
-		return &models.RecipeQueryResponse{
-			Recipes: []*models.Recipe{matched},
-		}, nil
-	}
-
-	generated, err := s.generateRecipeFromQuery(query)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.CreateRecipe(generated); err != nil {
-		return nil, err
-	}
-
-	if err := s.updateRecipeVectorEmbedding(generated); err != nil {
-		zap.L().Warn("failed to update vector embedding for generated recipe", zap.Error(err))
-	}
-
 	return &models.RecipeQueryResponse{
-		Recipes: []*models.Recipe{generated},
+		Recipes: append([]*models.Recipe{resolution.PrimaryRecipe}, resolution.AlternativeRecipes...),
 	}, nil
 }
 

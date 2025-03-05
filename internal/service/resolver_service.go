@@ -9,28 +9,30 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 )
 
-// These request and response types define the API contract with the resolver service.
+// ResolverServiceURL is the endpoint for the resolver microservice.
+// In production, this is typically loaded from configuration.
+var ResolverServiceURL = "http://localhost:8081/resolve"
+
+// ResolutionRequest defines the request payload for recipe resolution.
 type ResolutionRequest struct {
 	Query string `json:"query"`
 }
 
+// ResolutionResponse defines the expected response payload.
 type ResolutionResponse struct {
 	PrimaryRecipe      *models.Recipe   `json:"primary_recipe"`
 	AlternativeRecipes []*models.Recipe `json:"alternative_recipes"`
 }
 
-// In production this URL should be read from the configuration.
-var resolverServiceURL = "http://localhost:8081/resolve"
-
-// ResolveRecipeQuery sends the recipe query to the resolver microservice.
-func ResolveRecipeQuery(query string) (*ResolutionResponse, error) {
+// CallResolver sends a request to the external resolver microservice and returns its response.
+func CallResolver(query string) (*ResolutionResponse, error) {
 	reqPayload := ResolutionRequest{Query: query}
 	reqBytes, err := json.Marshal(reqPayload)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := http.Post(resolverServiceURL, "application/json", bytes.NewBuffer(reqBytes))
+	resp, err := http.Post(ResolverServiceURL, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, err
 	}

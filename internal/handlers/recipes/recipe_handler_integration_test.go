@@ -16,7 +16,8 @@ import (
 	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository" // ensure repository package is imported
-	pb "github.com/pageza/recipe-book-api-v2/proto/proto"      // generated proto package for recipes
+	"github.com/pageza/recipe-book-api-v2/internal/service"
+	pb "github.com/pageza/recipe-book-api-v2/proto/proto" // generated proto package for recipes
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
@@ -326,4 +327,65 @@ func TestCreateRecipe(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "dummy-created-id", createdRecipe.ID)
 	assert.Equal(t, "New Recipe", createdRecipe.Title)
+}
+
+// fakeResolverResponse mirrors the expected resolver response contract.
+type fakeResolverResponse struct {
+	PrimaryRecipe      *models.Recipe   `json:"primary_recipe"`
+	AlternativeRecipes []*models.Recipe `json:"alternative_recipes"`
+}
+
+func TestRecipeQueryIntegrationSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Create a fake resolver service endpoint that returns the legacy structure.
+	resolverHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := struct {
+			PrimaryRecipe      *models.Recipe   `json:"primary_recipe"`
+			AlternativeRecipes []*models.Recipe `json:"alternative_recipes"`
+		}{
+			PrimaryRecipe: &models.Recipe{
+				ID:                "integration-test-id",
+				Title:             "Integration Test Recipe",
+				Ingredients:       `["ingredient1", "ingredient2"]`,
+				Steps:             `["step1", "step2"]`,
+				NutritionalInfo:   "{}",
+				AllergyDisclaimer: "none",
+				Appliances:        "[]",
+			},
+			AlternativeRecipes: []*models.Recipe{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+	testResolverServer := httptest.NewServer(resolverHandler)
+	defer testResolverServer.Close()
+
+	// Override the resolver service URL to use our fake server.
+	service.ResolverServiceURL = testResolverServer.URL
+
+	router := gin.Default()
+	// Inject the RecipeService that delegates the resolution to the external resolver.
+	handler := recipes.NewRecipeHandler(service.NewRecipeService(nil))
+	router.POST("/query", handler.Query)
+
+	reqBody := `{"query": "Integration Test Recipe"}`
+	req, err := http.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+
+	// The new contract returns the recipes in a "recipes" field.
+	var queryResp struct {
+		Recipes []*models.Recipe `json:"recipes"`
+	}
+	err = json.Unmarshal(recorder.Body.Bytes(), &queryResp)
+	assert.NoError(t, err)
+	assert.Len(t, queryResp.Recipes, 1)
+	assert.Equal(t, "integration-test-id", queryResp.Recipes[0].ID)
+	assert.Equal(t, "Integration Test Recipe", queryResp.Recipes[0].Title)
 }
