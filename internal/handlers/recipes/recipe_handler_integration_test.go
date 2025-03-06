@@ -15,6 +15,7 @@ import (
 	recipes "github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository" // make sure repository package is imported
+
 	// generated proto package for recipes
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -26,8 +27,12 @@ import (
 var testDB *gorm.DB // our test DB connection
 var grpcClient pb.RecipeServiceClient
 
-// TestMain sets up the test database and migrates the Recipe model before running tests.
+// TestMain sets up the test database and overrides environment variables before executing tests.
 func TestMain(m *testing.M) {
+	// Override DB_HOST for tests without affecting the production or orchestrated environment.
+	// This ensures that tests use "localhost" instead of the default "db".
+	os.Setenv("DB_HOST", "localhost")
+
 	var err error
 	// Connect to your test database.
 	testDB, err = repository.ConnectTestDB() // ensure you have this helper to connect to your test DB
