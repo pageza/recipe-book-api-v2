@@ -5,6 +5,7 @@ package recipe
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/service"
@@ -23,22 +24,31 @@ func NewServer(svc service.RecipeService) *Server {
 }
 
 // GetRecipe implements the GetRecipe RPC.
-// It retrieves a recipe by its ID from the service layer.
+// It retrieves a recipe by its ID and converts the internal model into a gRPC response.
 func (s *Server) GetRecipe(ctx context.Context, req *pb.GetRecipeRequest) (*pb.GetRecipeResponse, error) {
 	recipe, err := s.svc.GetRecipe(req.RecipeId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recipe: %v", err)
 	}
 
-	// Convert the internal Recipe model into a gRPC response.
+	ingredientsStr := strings.Join(recipe.Ingredients, ", ")
+	stepsStr := strings.Join(recipe.Steps, ", ")
+	appliancesStr := strings.Join(recipe.Appliances, ", ")
+	nutritionalInfoStr := fmt.Sprintf("Calories: %.0f, Protein: %.0f, Carbs: %.0f, Fat: %.0f, Fiber: %.0f",
+		recipe.NutritionalInfo.Calories,
+		recipe.NutritionalInfo.Protein,
+		recipe.NutritionalInfo.Carbohydrates,
+		recipe.NutritionalInfo.Fat,
+		recipe.NutritionalInfo.Fiber)
+
 	resp := &pb.GetRecipeResponse{
 		RecipeId:          recipe.ID,
 		Title:             recipe.Title,
-		Ingredients:       recipe.Ingredients,
-		Steps:             recipe.Steps,
-		NutritionalInfo:   recipe.NutritionalInfo,
+		Ingredients:       ingredientsStr,
+		Steps:             stepsStr,
+		NutritionalInfo:   nutritionalInfoStr,
 		AllergyDisclaimer: recipe.AllergyDisclaimer,
-		Appliances:        recipe.Appliances,
+		Appliances:        appliancesStr,
 		CreatedAt:         recipe.CreatedAt.Unix(),
 		UpdatedAt:         recipe.UpdatedAt.Unix(),
 	}
@@ -48,7 +58,7 @@ func (s *Server) GetRecipe(ctx context.Context, req *pb.GetRecipeRequest) (*pb.G
 // QueryRecipe implements the QueryRecipe RPC.
 // This endpoint handles both list (when query is empty) and advanced search queries.
 func (s *Server) QueryRecipe(ctx context.Context, req *pb.RecipeQueryRequest) (*pb.RecipeQueryResponse, error) {
-	// Use getters provided by the generated proto code.
+	// Convert incoming proto request into an internal RecipeQueryRequest.
 	queryReq := &models.RecipeQueryRequest{
 		Query:  req.Query,
 		UserID: req.UserId,
@@ -63,27 +73,37 @@ func (s *Server) QueryRecipe(ctx context.Context, req *pb.RecipeQueryRequest) (*
 		return nil, fmt.Errorf("failed to query recipes: %v", err)
 	}
 
-	// Convert each internal Recipe into a proto GetRecipeResponse.
 	var protoRecipes []*pb.GetRecipeResponse
-	for _, r := range queryResp.Recipes {
+	for _, rec := range queryResp.Recipes {
+		// Convert slice fields into a comma-separated string
+		ingredientsStr := strings.Join(rec.Ingredients, ", ")
+		stepsStr := strings.Join(rec.Steps, ", ")
+		appliancesStr := strings.Join(rec.Appliances, ", ")
+		// Format the NutritionalInfo struct into a single string.
+		nutritionalInfoStr := fmt.Sprintf("Calories: %.0f, Protein: %.0f, Carbs: %.0f, Fat: %.0f, Fiber: %.0f",
+			rec.NutritionalInfo.Calories,
+			rec.NutritionalInfo.Protein,
+			rec.NutritionalInfo.Carbohydrates,
+			rec.NutritionalInfo.Fat,
+			rec.NutritionalInfo.Fiber)
+
 		protoRecipes = append(protoRecipes, &pb.GetRecipeResponse{
-			RecipeId:          r.ID,
-			Title:             r.Title,
-			Ingredients:       r.Ingredients,
-			Steps:             r.Steps,
-			NutritionalInfo:   r.NutritionalInfo,
-			AllergyDisclaimer: r.AllergyDisclaimer,
-			Appliances:        r.Appliances,
-			CreatedAt:         r.CreatedAt.Unix(),
-			UpdatedAt:         r.UpdatedAt.Unix(),
+			RecipeId:          rec.ID,
+			Title:             rec.Title,
+			Ingredients:       ingredientsStr,
+			Steps:             stepsStr,
+			NutritionalInfo:   nutritionalInfoStr,
+			AllergyDisclaimer: rec.AllergyDisclaimer,
+			Appliances:        appliancesStr,
+			CreatedAt:         rec.CreatedAt.Unix(),
+			UpdatedAt:         rec.UpdatedAt.Unix(),
 		})
 	}
 
-	// Construct the final gRPC response including pagination details.
-	resp := new(pb.RecipeQueryResponse)
-	resp.Recipes = protoRecipes
-	resp.Page = int32(queryResp.Page)
-	resp.Limit = int32(queryResp.Limit)
-	resp.Total = int32(queryResp.Total)
-	return resp, nil
+	return &pb.RecipeQueryResponse{
+		Recipes: protoRecipes,
+		Page:    int32(queryResp.Page),
+		Limit:   int32(queryResp.Limit),
+		Total:   int32(queryResp.Total),
+	}, nil
 }

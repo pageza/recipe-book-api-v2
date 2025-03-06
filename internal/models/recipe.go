@@ -2,18 +2,27 @@ package models
 
 import "time"
 
+// NutritionalInfo represents nutritional information for a recipe.
+type NutritionalInfo struct {
+	Calories      float64 `json:"calories"`
+	Protein       float64 `json:"protein"`
+	Carbohydrates float64 `json:"carbohydrates"`
+	Fat           float64 `json:"fat"`
+	Fiber         float64 `json:"fiber"`
+}
+
 // Recipe represents the domain model for a recipe.
 type Recipe struct {
-	ID                string    `json:"id"`
-	Title             string    `json:"title"`
-	Ingredients       string    `json:"ingredients"`
-	Steps             string    `json:"steps"`
-	NutritionalInfo   string    `json:"nutritional_info"`
-	AllergyDisclaimer string    `json:"allergy_disclaimer"`
-	Appliances        string    `json:"appliances"`
-	CreatedAt         time.Time `json:"created_at"` // time of creation
-	UpdatedAt         time.Time `json:"updated_at"` // time of last update
-	UserID            string    `json:"user_id"`    // associates the recipe with a user
+	ID                string          `json:"id" gorm:"primaryKey"`
+	Title             string          `json:"title"`
+	Ingredients       []string        `json:"ingredients" gorm:"type:text[]"`
+	Steps             []string        `json:"steps" gorm:"type:text[]"`
+	NutritionalInfo   NutritionalInfo `json:"nutritional_info" gorm:"embedded;embeddedPrefix:nutri_"`
+	AllergyDisclaimer string          `json:"allergy_disclaimer"`
+	Appliances        []string        `json:"appliances" gorm:"type:text[]"`
+	CreatedAt         time.Time       `json:"created_at"` // time of creation
+	UpdatedAt         time.Time       `json:"updated_at"` // time of last update
+	UserID            string          `json:"user_id,omitempty"`
 }
 
 // RecipeQueryRequest carries parameters for querying recipes.

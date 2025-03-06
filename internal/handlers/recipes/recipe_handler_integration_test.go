@@ -145,11 +145,11 @@ func (m *mockRecipeService) GetRecipe(recipeID string) (*models.Recipe, error) {
 	return &models.Recipe{
 		ID:                recipeID,
 		Title:             "Test Recipe",
-		Ingredients:       "Ingredient1, Ingredient2",
-		Steps:             "Step1, Step2",
-		NutritionalInfo:   "Calories: 100",
+		Ingredients:       []string{"Ingredient1", "Ingredient2"},
+		Steps:             []string{"Step1", "Step2"},
+		NutritionalInfo:   models.NutritionalInfo{Calories: 100, Protein: 0, Carbohydrates: 0, Fat: 0, Fiber: 0},
 		AllergyDisclaimer: "None",
-		Appliances:        "Oven, Stove",
+		Appliances:        []string{"Oven", "Stove"},
 		CreatedAt:         time.Unix(1630000000, 0),
 		UpdatedAt:         time.Unix(1630000000, 0),
 		UserID:            "user123",
@@ -162,11 +162,11 @@ func (m *mockRecipeService) QueryRecipes(req *models.RecipeQueryRequest) (*model
 		{
 			ID:                "r1",
 			Title:             "Recipe One",
-			Ingredients:       "Ing1, Ing2",
-			Steps:             "Step1, Step2",
-			NutritionalInfo:   "Info1",
+			Ingredients:       []string{"Ing1", "Ing2"},
+			Steps:             []string{"Step1", "Step2"},
+			NutritionalInfo:   models.NutritionalInfo{Calories: 100, Protein: 0, Carbohydrates: 0, Fat: 0, Fiber: 0},
 			AllergyDisclaimer: "None",
-			Appliances:        "Microwave, Oven",
+			Appliances:        []string{"Microwave", "Oven"},
 			CreatedAt:         time.Unix(1630000000, 0),
 			UpdatedAt:         time.Unix(1630000000, 0),
 			UserID:            "user123",
@@ -174,11 +174,11 @@ func (m *mockRecipeService) QueryRecipes(req *models.RecipeQueryRequest) (*model
 		{
 			ID:                "r2",
 			Title:             "Recipe Two",
-			Ingredients:       "IngA, IngB",
-			Steps:             "StepA, StepB",
-			NutritionalInfo:   "Info2",
+			Ingredients:       []string{"IngA", "IngB"},
+			Steps:             []string{"StepA", "StepB"},
+			NutritionalInfo:   models.NutritionalInfo{Calories: 100, Protein: 0, Carbohydrates: 0, Fat: 0, Fiber: 0},
 			AllergyDisclaimer: "None",
-			Appliances:        "Stove",
+			Appliances:        []string{"Stove"},
 			CreatedAt:         time.Unix(1630000000, 0),
 			UpdatedAt:         time.Unix(1630000000, 0),
 			UserID:            "user123",
@@ -225,14 +225,19 @@ func TestQueryMyRecipes(t *testing.T) {
 	}
 
 	// Seed a recipe with UserID "myUser".
-	recipe := models.Recipe{
-		ID:        "r123",
-		UserID:    "myUser", // Correct field name
-		Title:     "Test Recipe for myUser",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	testRecipe := models.Recipe{
+		ID:                "r123",
+		Title:             "Test Recipe",
+		Ingredients:       []string{"Ingredient1", "Ingredient2"},
+		Steps:             []string{"Step1", "Step2"},
+		NutritionalInfo:   models.NutritionalInfo{Calories: 100, Protein: 0, Carbohydrates: 0, Fat: 0, Fiber: 0},
+		AllergyDisclaimer: "None",
+		Appliances:        []string{"Oven", "Stove"},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		UserID:            "myUser",
 	}
-	if err := testDB.Create(&recipe).Error; err != nil {
+	if err := testDB.Create(&testRecipe).Error; err != nil {
 		t.Fatalf("failed to seed test recipe: %v", err)
 	}
 
@@ -265,14 +270,19 @@ func TestQueryOtherUsersRecipes(t *testing.T) {
 	}
 
 	// Seed a recipe with UserID "otherUser".
-	recipe := models.Recipe{
-		ID:        "r456",
-		UserID:    "otherUser", // Correct field name
-		Title:     "Test Recipe for otherUser",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	testRecipe := models.Recipe{
+		ID:                "r456",
+		Title:             "Test Recipe for otherUser",
+		Ingredients:       []string{"IngA", "IngB"},
+		Steps:             []string{"StepA", "StepB"},
+		NutritionalInfo:   models.NutritionalInfo{Calories: 100, Protein: 0, Carbohydrates: 0, Fat: 0, Fiber: 0},
+		AllergyDisclaimer: "None",
+		Appliances:        []string{"Stove"},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		UserID:            "otherUser",
 	}
-	if err := testDB.Create(&recipe).Error; err != nil {
+	if err := testDB.Create(&testRecipe).Error; err != nil {
 		t.Fatalf("failed to seed test recipe: %v", err)
 	}
 
