@@ -3,17 +3,21 @@ package users_test
 import (
 	"context"
 	"log"
+	"net"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	grpcuser "github.com/pageza/recipe-book-api-v2/grpc/user"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository"
+	"github.com/pageza/recipe-book-api-v2/internal/service"
 	"github.com/pageza/recipe-book-api-v2/proto/proto" // Generated gRPC client code
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/status"
 )
 
@@ -21,6 +25,10 @@ var testDB = repository.DB(nil)
 var grpcClient proto.UserServiceClient
 
 func TestMain(m *testing.M) {
+	// Use SQLite in-memory database for tests.
+	os.Setenv("TEST_DB_DRIVER", "sqlite")
+	log.Println("TEST_DB_DRIVER set to sqlite.")
+
 	var err error
 	// Connect to your test database.
 	testDB, err = repository.ConnectTestDB()
@@ -37,27 +45,60 @@ func TestMain(m *testing.M) {
 	// Give the DB some time to be ready (if needed).
 	time.Sleep(1 * time.Second)
 
-	// Setup gRPC client connection for integration tests.
-	// This might use an environment variable or a default.
-	host := os.Getenv("GRPC_SERVER_HOST")
-	if host == "" {
-		host = "grpc-server:50051" // adjust if needed
-	}
-	conn, err := grpc.Dial(host, grpc.WithInsecure())
+	// Setup an in-process gRPC server for the user service.
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		log.Fatalf("failed to connect to gRPC server: %v", err)
+		log.Fatalf("failed to open test listener: %v", err)
+	}
+	log.Printf("gRPC listener opened on %s", lis.Addr().String())
+
+	// Set the environment variable so that setupTestClient uses the correct address.
+	os.Setenv("GRPC_SERVER_HOST", lis.Addr().String())
+
+	grpcServer := grpc.NewServer()
+
+	// Initialize and register the user service.
+	userRepo := repository.NewUserRepository(testDB)
+	userSvc := service.NewUserService(userRepo)
+	proto.RegisterUserServiceServer(grpcServer, grpcuser.NewServer(userSvc))
+
+	// Start the gRPC server in a separate goroutine.
+	go func() {
+		log.Println("Starting in-process user gRPC server...")
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Printf("gRPC server terminated: %v", err)
+		}
+	}()
+	log.Println("gRPC server started; waiting 500ms for startup...")
+	time.Sleep(500 * time.Millisecond)
+
+	// Dial the in-process gRPC server.
+	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to dial in-process gRPC server: %v", err)
+	}
+
+	// Poll until the connection becomes READY.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			log.Println("Connection is READY.")
+			break
+		}
+		if !conn.WaitForStateChange(ctx, state) {
+			log.Fatalf("Timeout waiting for connection to become ready.")
+		}
 	}
 	grpcClient = proto.NewUserServiceClient(conn)
+	log.Println("gRPC client setup complete.")
 
 	// Run tests.
 	code := m.Run()
 
-	// // Clean up the test database (e.g., drop user table)
-	// err = testDB.Migrator().DropTable(&models.User{})
-	// if err != nil {
-	// 	log.Fatalf("failed to drop users table: %v", err)
-	// }
-
+	grpcServer.GracefulStop()
+	log.Println("gRPC server gracefully stopped.")
 	os.Exit(code)
 }
 
