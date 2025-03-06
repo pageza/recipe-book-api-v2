@@ -27,9 +27,9 @@ import (
 var testDB *gorm.DB // our test DB connection
 var grpcClient pb.RecipeServiceClient
 
-// TestMain sets up the test database and overrides environment variables before executing tests.
+// TestMain sets up the test database, overrides environment variables, and connects to the gRPC server with a timeout.
 func TestMain(m *testing.M) {
-	// Override DB_HOST for tests to "localhost" if needed and switch DB driver to SQLite.
+	// Override DB_HOST for tests and switch DB driver to SQLite for in-memory testing.
 	os.Setenv("DB_HOST", "localhost")
 	os.Setenv("TEST_DB_DRIVER", "sqlite")
 
@@ -46,15 +46,18 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to auto-migrate recipes table: %v", err)
 	}
 
-	// Optionally, wait a bit to ensure the migration is complete.
+	// Optionally, wait a bit to ensure migration is complete.
 	time.Sleep(1 * time.Second)
 
-	// Setup gRPC client connection for integration tests.
+	// Setup gRPC client connection using WithBlock and a context timeout.
 	addr := os.Getenv("GRPC_DIAL_ADDRESS")
 	if addr == "" {
-		addr = "grpc-server:50051" // adjust if needed
+		// Update default the address to localhost for test purposes.
+		addr = "localhost:50051"
 	}
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("failed to connect to gRPC server: %v", err)
 	}
@@ -62,7 +65,6 @@ func TestMain(m *testing.M) {
 
 	// Run tests.
 	code := m.Run()
-
 	os.Exit(code)
 }
 
