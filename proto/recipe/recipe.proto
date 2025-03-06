@@ -2,33 +2,24 @@ syntax = "proto3";
 
 package recipe;
 
-option go_package = "./proto;proto";
+option go_package = "github.com/pageza/recipe-book-api-v2/proto/proto/recipe;recipe";
 
+// RecipeService defines the gRPC service for recipe operations.
 service RecipeService {
-  rpc CreateRecipe (CreateRecipeRequest) returns (CreateRecipeResponse);
+  // GetRecipe fetches a recipe by its unique ID.
   rpc GetRecipe (GetRecipeRequest) returns (GetRecipeResponse);
-  rpc ListRecipes (ListRecipesRequest) returns (ListRecipesResponse);
+  // QueryRecipe is a unified endpoint for:
+  //   - Listing recipes (if the "query" field is empty) filtered by user_id and/or filter.
+  //   - Advanced searches when the "query" field is non-empty (e.g., by cuisine, diet, ingredients).
   rpc QueryRecipe (RecipeQueryRequest) returns (RecipeQueryResponse);
 }
 
-message CreateRecipeRequest {
-  string title = 1;
-  string ingredients = 2;          // JSON string of detailed ingredients
-  string steps = 3;                // JSON string of step-by-step instructions
-  string nutritional_info = 4;     // JSON string with nutritional breakdown (calories, macros, etc.)
-  string allergy_disclaimer = 5;   // Disclaimer about potential allergy risks
-  string appliances = 6;           // JSON string of required appliances/cookware
-}
-
-message CreateRecipeResponse {
-  string recipe_id = 1;
-  string message = 2;
-}
-
+// GetRecipeRequest is used to request a specific recipe.
 message GetRecipeRequest {
   string recipe_id = 1;
 }
 
+// GetRecipeResponse returns the full details of a recipe.
 message GetRecipeResponse {
   string recipe_id = 1;
   string title = 2;
@@ -37,22 +28,25 @@ message GetRecipeResponse {
   string nutritional_info = 5;
   string allergy_disclaimer = 6;
   string appliances = 7;
-  int64 created_at = 8;  // Unix timestamp (seconds or milliseconds, depending on your implementation)
+  int64 created_at = 8;  
   int64 updated_at = 9;
 }
 
-message ListRecipesRequest {}
-
-message ListRecipesResponse {
-  repeated GetRecipeResponse recipes = 1;
-}
-
+// RecipeQueryRequest is used for both advanced search and list operations.
+// An empty "query" field indicates a listing operation, while a non-empty field
+// triggers advanced search logic (e.g., filtering by cuisine, diet, etc.).
 message RecipeQueryRequest {
-  string query = 1; // e.g., "vegan only", "only use chicken", etc.
-  // Additional filtering parameters can be added here in the future.
+  string query = 1;      // Advanced search text (e.g., "vegan"); empty for simple listings.
+  string user_id = 2;    // Optional: Filter recipes by creator's user ID.
+  string filter = 3;     // Optional: Additional filtering criteria (e.g., "Indian").
+  int32 page = 4;        // Optional: Requested page number for pagination.
+  int32 limit = 5;       // Optional: Number of recipes per page.
 }
 
+// RecipeQueryResponse returns the results for a query along with pagination details.
 message RecipeQueryResponse {
-  GetRecipeResponse primary_recipe = 1;
-  repeated GetRecipeResponse alternative_recipes = 2;
+  repeated GetRecipeResponse recipes = 1;  // List of recipes matching the query.
+  int32 page = 2;                          // Echoed page number.
+  int32 limit = 3;                         // Echoed limit per page.
+  int32 total = 4;                         // Total number of matching recipes.
 }

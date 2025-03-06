@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pageza/recipe-book-api-v2/internal/config"
 	"github.com/pageza/recipe-book-api-v2/internal/handlers"
+	"github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	userhandler "github.com/pageza/recipe-book-api-v2/internal/handlers/users"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/routes/protectedroutes"
@@ -63,7 +64,8 @@ func setupRouter() *gin.Engine {
 		JWTSecret: "testsecret",
 	}
 	// Register protected routes using the protectedroutes package.
-	protectedroutes.Register(router, cfg, newDummyHandlers())
+	recipeHandler := recipes.NewRecipeHandler(nil)
+	protectedroutes.Register(router, cfg, newDummyHandlers(), recipeHandler)
 
 	return router
 }
@@ -145,4 +147,14 @@ func TestProtectedRoutes(t *testing.T) {
 	assert.Equal(t, "dummy@example.com", userResp.Email)
 	assert.Equal(t, "dummyuser", userResp.Username)
 	assert.Equal(t, "{}", userResp.Preferences)
+}
+
+func TestRouterRegistration(t *testing.T) {
+	r := gin.Default()
+	cfg := &config.Config{}   // Assume a valid Config instance.
+	h := &handlers.Handlers{} // Assume a valid Handlers instance.
+	// Create a dummy RecipeHandler (in real code, pass a proper RecipeService).
+	recipeHandler := recipes.NewRecipeHandler(nil)
+	// Now call Register with the additional RecipeHandler.
+	protectedroutes.Register(r, cfg, h, recipeHandler)
 }

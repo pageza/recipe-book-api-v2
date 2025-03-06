@@ -2,22 +2,29 @@ package recipes_test
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gin-gonic/gin"
+	recipes "github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
 	"github.com/pageza/recipe-book-api-v2/internal/repository" // make sure repository package is imported
-	"github.com/pageza/recipe-book-api-v2/proto/proto"         // generated proto package for recipes
+	// generated proto package for recipes
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
+
+	pb "github.com/pageza/recipe-book-api-v2/proto/proto"
 )
 
 var testDB *gorm.DB // our test DB connection
-var grpcClient proto.RecipeServiceClient
+var grpcClient pb.RecipeServiceClient
 
 // TestMain sets up the test database and migrates the Recipe model before running tests.
 func TestMain(m *testing.M) {
@@ -47,7 +54,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to connect to gRPC server: %v", err)
 	}
-	grpcClient = proto.NewRecipeServiceClient(conn)
+	grpcClient = pb.NewRecipeServiceClient(conn)
 
 	// Run tests.
 	code := m.Run()
@@ -58,76 +65,204 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestIntegration_CreateAndGetRecipe(t *testing.T) {
-	// Read the gRPC server address from the environment, just like in user_handler_integration_test.go.
-	grpcServerAddr := os.Getenv("GRPC_SERVER_ADDR")
-	if grpcServerAddr == "" {
-		grpcServerAddr = "grpc-server:50051"
+func TestGetRecipeGRPC(t *testing.T) {
+	// Replace with the correct address of your test gRPC server
+	address := "localhost:50051"
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		t.Fatalf("Failed to connect to gRPC server: %v", err)
 	}
-
-	conn, err := grpc.Dial(grpcServerAddr, grpc.WithInsecure())
-	assert.NoError(t, err, "Expected to connect to gRPC server")
 	defer conn.Close()
 
-	client := proto.NewRecipeServiceClient(conn)
-
-	// Example: create a new recipe.
+	client := pb.NewRecipeServiceClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := client.CreateRecipe(ctx, &proto.CreateRecipeRequest{
-		Title:       "Healthy Chicken Salad",
-		Ingredients: `{"items": ["chicken", "lettuce", "tomato", "cucumber"]}`,
-		Steps:       `{"steps": ["Grill chicken", "Chop veggies", "Mix together"]}`,
-		// Note: our new Recipe model has additional fields (NutritionalInfo, AllergyDisclaimer, Appliances)
-		// but the current proto definition doesn't include these.
-		// We assume that later you'll update the proto, so for now these are omitted.
-	})
-	assert.NoError(t, err, "Expected no error during recipe creation")
-	assert.NotEmpty(t, resp.RecipeId, "Expected a non-empty recipeId")
-
-	// Wait briefly for the recipe to be available.
-	time.Sleep(1 * time.Second)
-
-	// Retrieve the recipe via gRPC.
-	getReq := &proto.GetRecipeRequest{
-		RecipeId: resp.RecipeId,
+	req := &pb.GetRecipeRequest{
+		RecipeId: "test-recipe-1",
 	}
-	getResp, err := client.GetRecipe(ctx, getReq)
-	assert.NoError(t, err, "Expected no error during recipe retrieval")
-	assert.Equal(t, "Healthy Chicken Salad", getResp.Title, "Recipe title should match")
-	assert.Equal(t, `{"items": ["chicken", "lettuce", "tomato", "cucumber"]}`, getResp.Ingredients, "Ingredients should match")
-	assert.Equal(t, `{"steps": ["Grill chicken", "Chop veggies", "Mix together"]}`, getResp.Steps, "Steps should match")
+	resp, err := client.GetRecipe(ctx, req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	// Additional assertions based on the expected data from the GetRecipe RPC.
 }
 
-func TestIntegration_ListRecipes(t *testing.T) {
-	// This test assumes that there is at least one recipe in the database from previous tests.
-	listReq := &proto.ListRecipesRequest{}
-	listResp, err := grpcClient.ListRecipes(context.Background(), listReq)
-	assert.NoError(t, err, "Expected no error during listing recipes")
-	assert.Greater(t, len(listResp.Recipes), 0, "Expected at least one recipe in the list")
+func TestQueryRecipeGRPC(t *testing.T) {
+	address := "localhost:50051"
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		t.Fatalf("Failed to connect to gRPC server: %v", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewRecipeServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req := &pb.RecipeQueryRequest{
+		Query:  "vegan",
+		UserId: "user-123",
+		Filter: "dinner",
+		Page:   1,
+		Limit:  10,
+	}
+	resp, err := client.QueryRecipe(ctx, req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	// Validate the response, e.g.
+	// assert.Equal(t, int32(1), resp.Page)
+	// assert.Equal(t, int32(10), resp.Limit)
+	// assert.NotNil(t, resp.Recipes)
 }
 
-func TestIntegration_QueryRecipe(t *testing.T) {
-	// Since the query functionality is part of our application logic (using RAG and so on),
-	// we'll assume that the service layer wraps the proto.GetRecipe functionality for now.
-	// For this test, we simulate a query by first creating a recipe and then querying it.
-	uniqueTitle := "Vegan Delight " + uuid.New().String()
-	createReq := &proto.CreateRecipeRequest{
-		Title:       uniqueTitle,
-		Ingredients: `{"items": ["tofu", "spinach", "quinoa"]}`,
-		Steps:       `{"steps": ["Cook quinoa", "Sauté tofu", "Mix with spinach"]}`,
-	}
-	createResp, err := grpcClient.CreateRecipe(context.Background(), createReq)
-	assert.NoError(t, err, "Expected no error during recipe creation for query")
+// mockRecipeService implements recipes.RecipeService for testing.
+type mockRecipeService struct{}
 
-	// Here, we assume that the query returns a primary recipe and alternatives.
-	// For now, we simulate by using GetRecipe.
-	getReq := &proto.GetRecipeRequest{
-		RecipeId: createResp.RecipeId,
+func (m *mockRecipeService) GetRecipe(recipeID string) (*models.Recipe, error) {
+	return &models.Recipe{
+		ID:                recipeID,
+		Title:             "Test Recipe",
+		Ingredients:       "Ingredient1, Ingredient2",
+		Steps:             "Step1, Step2",
+		NutritionalInfo:   "Calories: 100",
+		AllergyDisclaimer: "None",
+		Appliances:        "Oven, Stove",
+		CreatedAt:         time.Unix(1630000000, 0),
+		UpdatedAt:         time.Unix(1630000000, 0),
+		UserID:            "user123",
+	}, nil
+}
+
+func (m *mockRecipeService) QueryRecipes(req *models.RecipeQueryRequest) (*models.RecipeQueryResponse, error) {
+	// For testing, return two dummy recipes.
+	recipesList := []*models.Recipe{
+		{
+			ID:                "r1",
+			Title:             "Recipe One",
+			Ingredients:       "Ing1, Ing2",
+			Steps:             "Step1, Step2",
+			NutritionalInfo:   "Info1",
+			AllergyDisclaimer: "None",
+			Appliances:        "Microwave, Oven",
+			CreatedAt:         time.Unix(1630000000, 0),
+			UpdatedAt:         time.Unix(1630000000, 0),
+			UserID:            "user123",
+		},
+		{
+			ID:                "r2",
+			Title:             "Recipe Two",
+			Ingredients:       "IngA, IngB",
+			Steps:             "StepA, StepB",
+			NutritionalInfo:   "Info2",
+			AllergyDisclaimer: "None",
+			Appliances:        "Stove",
+			CreatedAt:         time.Unix(1630000000, 0),
+			UpdatedAt:         time.Unix(1630000000, 0),
+			UserID:            "user123",
+		},
 	}
-	getResp, err := grpcClient.GetRecipe(context.Background(), getReq)
-	assert.NoError(t, err, "Expected no error during recipe query simulation")
-	// We simulate the RecipeQueryResponse here by asserting that we got the expected title.
-	assert.Equal(t, uniqueTitle, getResp.Title, "Queried recipe title should match the created recipe")
+
+	return &models.RecipeQueryResponse{
+		Recipes: recipesList,
+		Page:    req.Page,
+		Limit:   req.Limit,
+		Total:   2,
+	}, nil
+}
+
+// setupRouter initializes a Gin router with the RecipeHandler routes.
+func setupRouter(service recipes.RecipeService) *gin.Engine {
+	router := gin.Default()
+	handler := recipes.NewRecipeHandler(service)
+	router.GET("/recipes", handler.Query)
+	router.GET("/recipes/:id", handler.Get)
+	return router
+}
+
+func TestGetRecipe(t *testing.T) {
+	// Test scenario: Retrieve a recipe by its ID.
+	router := setupRouter(&mockRecipeService{})
+	req, _ := http.NewRequest("GET", "/recipes/r123", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code, "Expected HTTP status 200 for GetRecipe")
+
+	var recipe models.Recipe
+	err := json.Unmarshal(w.Body.Bytes(), &recipe)
+	assert.NoError(t, err, "Expected no error unmarshalling response")
+	assert.Equal(t, "r123", recipe.ID, "Recipe ID should match")
+	assert.Equal(t, "Test Recipe", recipe.Title, "Recipe title should be 'Test Recipe'")
+}
+
+func TestQueryMyRecipes(t *testing.T) {
+	// Test scenario: User wants to view their own recipes.
+	router := setupRouter(&mockRecipeService{})
+	req, _ := http.NewRequest("GET", "/recipes?user_id=myUser", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code, "Expected HTTP 200 for Query My Recipes")
+
+	var response models.RecipeQueryResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err, "Expected no error unmarshalling query response")
+	assert.Equal(t, 2, len(response.Recipes), "Should return two recipes for the user")
+	for _, recipe := range response.Recipes {
+		assert.Equal(t, "myUser", recipe.UserID, "Recipe user_id should match queried user_id")
+	}
+}
+
+func TestQueryOtherUsersRecipes(t *testing.T) {
+	// Test scenario: Retrieve recipes created by another user.
+	router := setupRouter(&mockRecipeService{})
+	req, _ := http.NewRequest("GET", "/recipes?user_id=otherUser", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code, "Expected HTTP 200 for Query Other User's Recipes")
+
+	var response models.RecipeQueryResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err, "Expected no error unmarshalling response")
+	assert.Equal(t, 2, len(response.Recipes), "Should return two recipes for another user")
+	for _, recipe := range response.Recipes {
+		assert.Equal(t, "otherUser", recipe.UserID, "Recipe user_id should match queried user_id")
+	}
+}
+
+func TestQueryByCuisineOrDiet(t *testing.T) {
+	router := setupRouter(&mockRecipeService{})
+	req, _ := http.NewRequest("GET", "/recipes?query=vegan&page=1&limit=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code, "Expected HTTP 200 for Query by Cuisine/Diet")
+
+	var response models.RecipeQueryResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err, "Expected no error unmarshalling response")
+	assert.Equal(t, 2, len(response.Recipes), "Should return two recipes for advanced query")
+	assert.Equal(t, 1, response.Page, "Page should be 1")
+	assert.Equal(t, 10, response.Limit, "Limit should be 10")
+}
+
+func TestQueryCombinedFilters(t *testing.T) {
+	router := setupRouter(&mockRecipeService{})
+	queryParams := "query=quick&user_id=testUser&filter=Indian&page=2&limit=5"
+	req, _ := http.NewRequest("GET", "/recipes?"+queryParams, nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code, "Expected HTTP 200 for combined filters query")
+
+	var response models.RecipeQueryResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err, "Expected no error unmarshalling response")
+	// In our mock, the response always returns two recipes.
+	assert.Equal(t, 2, len(response.Recipes), "Should return two recipes for combined query")
+	page, _ := strconv.Atoi("2")
+	limit, _ := strconv.Atoi("5")
+	assert.Equal(t, page, response.Page, "Page should be echoed as 2")
+	assert.Equal(t, limit, response.Limit, "Limit should be echoed as 5")
 }

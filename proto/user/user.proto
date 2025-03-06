@@ -3,7 +3,7 @@ syntax = "proto3";
 package user;
 
 // Ensure the go_package points to the correct location in your project
-option go_package = "./proto;proto";
+option go_package = "github.com/pageza/recipe-book-api-v2/proto/proto/user;user";
 
 service UserService {
   rpc Register(CreateUserRequest) returns (CreateUserResponse);

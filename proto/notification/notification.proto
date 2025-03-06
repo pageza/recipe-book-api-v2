@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package notification;
 
-option go_package = "./proto;proto";
+option go_package = "github.com/pageza/recipe-book-api-v2/proto/proto/notification;notification";
 
 service NotificationService {
   rpc SendNotification (SendNotificationRequest) returns (SendNotificationResponse);

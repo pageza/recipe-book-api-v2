@@ -36,7 +36,7 @@ func NewRouter(cfg *config.Config, h *handlers.Handlers) *gin.Engine {
 	// Delegate public route registration to publicroutes package.
 	publicroutes.Register(router, h)
 	// Delegate protected route registration to protectedroutes package.
-	protectedroutes.Register(router, cfg, h)
+	protectedroutes.Register(router, cfg, h, h.Recipe)
 
 	log.Println("Router routes registered")
 	return router

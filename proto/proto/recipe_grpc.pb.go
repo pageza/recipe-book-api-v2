@@ -19,19 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RecipeService_CreateRecipe_FullMethodName = "/recipe.RecipeService/CreateRecipe"
-	RecipeService_GetRecipe_FullMethodName    = "/recipe.RecipeService/GetRecipe"
-	RecipeService_ListRecipes_FullMethodName  = "/recipe.RecipeService/ListRecipes"
-	RecipeService_QueryRecipe_FullMethodName  = "/recipe.RecipeService/QueryRecipe"
+	RecipeService_GetRecipe_FullMethodName   = "/recipe.RecipeService/GetRecipe"
+	RecipeService_QueryRecipe_FullMethodName = "/recipe.RecipeService/QueryRecipe"
 )
 
 // RecipeServiceClient is the client API for RecipeService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// RecipeService defines the gRPC service for recipe operations.
 type RecipeServiceClient interface {
-	CreateRecipe(ctx context.Context, in *CreateRecipeRequest, opts ...grpc.CallOption) (*CreateRecipeResponse, error)
+	// GetRecipe fetches a recipe by its unique ID.
 	GetRecipe(ctx context.Context, in *GetRecipeRequest, opts ...grpc.CallOption) (*GetRecipeResponse, error)
-	ListRecipes(ctx context.Context, in *ListRecipesRequest, opts ...grpc.CallOption) (*ListRecipesResponse, error)
+	// QueryRecipe is a unified endpoint for:
+	//   - Listing recipes (if the "query" field is empty) filtered by user_id and/or filter.
+	//   - Advanced searches when the "query" field is non-empty (e.g., by cuisine, diet, ingredients).
 	QueryRecipe(ctx context.Context, in *RecipeQueryRequest, opts ...grpc.CallOption) (*RecipeQueryResponse, error)
 }
 
@@ -43,30 +45,10 @@ func NewRecipeServiceClient(cc grpc.ClientConnInterface) RecipeServiceClient {
 	return &recipeServiceClient{cc}
 }
 
-func (c *recipeServiceClient) CreateRecipe(ctx context.Context, in *CreateRecipeRequest, opts ...grpc.CallOption) (*CreateRecipeResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateRecipeResponse)
-	err := c.cc.Invoke(ctx, RecipeService_CreateRecipe_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *recipeServiceClient) GetRecipe(ctx context.Context, in *GetRecipeRequest, opts ...grpc.CallOption) (*GetRecipeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetRecipeResponse)
 	err := c.cc.Invoke(ctx, RecipeService_GetRecipe_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *recipeServiceClient) ListRecipes(ctx context.Context, in *ListRecipesRequest, opts ...grpc.CallOption) (*ListRecipesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListRecipesResponse)
-	err := c.cc.Invoke(ctx, RecipeService_ListRecipes_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +68,14 @@ func (c *recipeServiceClient) QueryRecipe(ctx context.Context, in *RecipeQueryRe
 // RecipeServiceServer is the server API for RecipeService service.
 // All implementations must embed UnimplementedRecipeServiceServer
 // for forward compatibility.
+//
+// RecipeService defines the gRPC service for recipe operations.
 type RecipeServiceServer interface {
-	CreateRecipe(context.Context, *CreateRecipeRequest) (*CreateRecipeResponse, error)
+	// GetRecipe fetches a recipe by its unique ID.
 	GetRecipe(context.Context, *GetRecipeRequest) (*GetRecipeResponse, error)
-	ListRecipes(context.Context, *ListRecipesRequest) (*ListRecipesResponse, error)
+	// QueryRecipe is a unified endpoint for:
+	//   - Listing recipes (if the "query" field is empty) filtered by user_id and/or filter.
+	//   - Advanced searches when the "query" field is non-empty (e.g., by cuisine, diet, ingredients).
 	QueryRecipe(context.Context, *RecipeQueryRequest) (*RecipeQueryResponse, error)
 	mustEmbedUnimplementedRecipeServiceServer()
 }
@@ -101,14 +87,8 @@ type RecipeServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedRecipeServiceServer struct{}
 
-func (UnimplementedRecipeServiceServer) CreateRecipe(context.Context, *CreateRecipeRequest) (*CreateRecipeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateRecipe not implemented")
-}
 func (UnimplementedRecipeServiceServer) GetRecipe(context.Context, *GetRecipeRequest) (*GetRecipeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRecipe not implemented")
-}
-func (UnimplementedRecipeServiceServer) ListRecipes(context.Context, *ListRecipesRequest) (*ListRecipesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListRecipes not implemented")
 }
 func (UnimplementedRecipeServiceServer) QueryRecipe(context.Context, *RecipeQueryRequest) (*RecipeQueryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryRecipe not implemented")
@@ -134,24 +114,6 @@ func RegisterRecipeServiceServer(s grpc.ServiceRegistrar, srv RecipeServiceServe
 	s.RegisterService(&RecipeService_ServiceDesc, srv)
 }
 
-func _RecipeService_CreateRecipe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateRecipeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RecipeServiceServer).CreateRecipe(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RecipeService_CreateRecipe_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RecipeServiceServer).CreateRecipe(ctx, req.(*CreateRecipeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RecipeService_GetRecipe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRecipeRequest)
 	if err := dec(in); err != nil {
@@ -166,24 +128,6 @@ func _RecipeService_GetRecipe_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RecipeServiceServer).GetRecipe(ctx, req.(*GetRecipeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RecipeService_ListRecipes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListRecipesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RecipeServiceServer).ListRecipes(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RecipeService_ListRecipes_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RecipeServiceServer).ListRecipes(ctx, req.(*ListRecipesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -214,16 +158,8 @@ var RecipeService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*RecipeServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateRecipe",
-			Handler:    _RecipeService_CreateRecipe_Handler,
-		},
-		{
 			MethodName: "GetRecipe",
 			Handler:    _RecipeService_GetRecipe_Handler,
-		},
-		{
-			MethodName: "ListRecipes",
-			Handler:    _RecipeService_ListRecipes_Handler,
 		},
 		{
 			MethodName: "QueryRecipe",
