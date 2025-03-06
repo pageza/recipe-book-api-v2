@@ -4,55 +4,55 @@ package repository
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 type DB = *gorm.DB
 
-// ConnectTestDB connects to the test database with retries.
+// ConnectTestDB connects to a database for testing purposes.
+// It uses SQLite in-memory when TEST_DB_DRIVER is set to "sqlite".
 func ConnectTestDB() (*gorm.DB, error) {
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "db" // matches "db" service name in docker-compose
+	driver := os.Getenv("TEST_DB_DRIVER")
+	if driver == "" {
+		driver = "postgres"
 	}
 
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		dbName = "recipe_db"
-	}
-
-	dbUser := os.Getenv("DB_USER")
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
-
-	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		// If Docker Compose sets DB_PASSWORD, it gets used.
-		// Otherwise fallback to "postgres" or some local default.
-		dbPassword = "postgres"
-	}
-
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	var db *gorm.DB
-	var err error
-	maxRetries := 10
-	for i := 0; i < maxRetries; i++ {
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err == nil {
-			return db, nil
+	if driver == "sqlite" {
+		db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to sqlite in-memory database: %w", err)
 		}
-		time.Sleep(3 * time.Second)
+		return db, nil
 	}
-	return nil, err
+
+	host := os.Getenv("DB_HOST")
+	if host == "" {
+		host = "db"
+	}
+	port := os.Getenv("DB_PORT")
+	if port == "" {
+		port = "5432"
+	}
+	user := os.Getenv("DB_USER")
+	if user == "" {
+		user = "postgres"
+	}
+	password := os.Getenv("DB_PASSWORD")
+	if password == "" {
+		password = "postgres"
+	}
+	dbname := os.Getenv("DB_NAME")
+	if dbname == "" {
+		dbname = "recipe_db"
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to postgres: %w", err)
+	}
+	return db, nil
 }

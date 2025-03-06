@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	recipes "github.com/pageza/recipe-book-api-v2/internal/handlers/recipes"
 	"github.com/pageza/recipe-book-api-v2/internal/models"
-	"github.com/pageza/recipe-book-api-v2/internal/repository" // make sure repository package is imported
+	"github.com/pageza/recipe-book-api-v2/internal/repository"
 
 	// generated proto package for recipes
 	"github.com/stretchr/testify/assert"
@@ -29,13 +29,13 @@ var grpcClient pb.RecipeServiceClient
 
 // TestMain sets up the test database and overrides environment variables before executing tests.
 func TestMain(m *testing.M) {
-	// Override DB_HOST for tests without affecting the production or orchestrated environment.
-	// This ensures that tests use "localhost" instead of the default "db".
+	// Override DB_HOST for tests to "localhost" if needed and switch DB driver to SQLite.
 	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("TEST_DB_DRIVER", "sqlite")
 
 	var err error
 	// Connect to your test database.
-	testDB, err = repository.ConnectTestDB() // ensure you have this helper to connect to your test DB
+	testDB, err = repository.ConnectTestDB()
 	if err != nil {
 		log.Fatalf("failed to connect to test database: %v", err)
 	}
@@ -46,11 +46,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to auto-migrate recipes table: %v", err)
 	}
 
-	// Optionally, wait a bit to ensure the migration is done.
+	// Optionally, wait a bit to ensure the migration is complete.
 	time.Sleep(1 * time.Second)
 
 	// Setup gRPC client connection for integration tests.
-	// For example, using an environment variable or a default address.
 	addr := os.Getenv("GRPC_DIAL_ADDRESS")
 	if addr == "" {
 		addr = "grpc-server:50051" // adjust if needed
@@ -63,9 +62,6 @@ func TestMain(m *testing.M) {
 
 	// Run tests.
 	code := m.Run()
-
-	// Optionally, clean up the test database here.
-	// repository.CleanupTestDB(testDB)
 
 	os.Exit(code)
 }
